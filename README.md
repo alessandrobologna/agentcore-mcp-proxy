@@ -53,6 +53,28 @@ uvx --from git+https://github.com/alessandrobologna/agentcore-mcp-proxy mcp-agen
 ```
 The proxy validates IAM credentials with `sts:GetCallerIdentity`, derives a deterministic AgentCore `runtimeSessionId`, and relays MCP messages to the remote runtime. Standard output carries the JSON-RPC responses. Errors surface as structured MCP error payloads.
 
+### VS Code MCP Client Example
+Configure VS Code MCP to launch the proxy with `uvx` and a pre-set runtime ARN. Replace the ARN value with the runtime you deploy.
+```json
+{
+  "servers": {
+    "mcp-proxy": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/alessandrobologna/agentcore-mcp-proxy",
+        "mcp-agentcore-proxy"
+      ],
+      "env": {
+        "AGENTCORE_AGENT_ARN": "arn:aws:bedrock:us-east-1:123456789012:agent-runtime/example"
+      }
+    }
+  },
+  "inputs": []
+}
+```
+
 ## Smoke Test
 `scripts/proxy_smoketest.py` exercises the proxy end to end by listing tools and optionally calling `get_weather`.
 ```bash
@@ -68,6 +90,21 @@ make push
 make deploy
 ```
 The Makefile handles Docker builds, ECR pushes, and SAM deployment. Stack outputs include the AgentCore runtime ARN. Run `make smoke-test` to resolve the ARN automatically and execute the smoketest against the deployed stack.
+
+### Makefile Targets
+- `make build` builds the container image locally using Docker Buildx (default platform `linux/arm64`).
+- `make push` ensures the ECR repository exists, logs in, and pushes the tagged image along with a digest tag.
+- `make deploy` builds, pushes, and deploys the SAM stack in one step using `sam deploy`. Region derives from `AWS_REGION` or your AWS CLI configuration.
+- `make outputs` prints CloudFormation stack outputs, including the AgentCore runtime ARN once deployed.
+- `make smoke-test` resolves the runtime ARN from stack outputs and runs the smoketest via `uv run` using the local CLI module.
+- `make clean` removes local Docker images created by the build step.
+
+Environment prerequisites:
+- Set `AWS_REGION` or configure a default region. The Makefile stops if no region is available.
+- Ensure Docker and the AWS CLI are installed, along with SAM CLI (`sam`).
+- Authenticate with AWS so `aws sts get-caller-identity` succeeds.
+
+These commands incur AWS usage. Example output is illustrative. Actual costs depend on traffic patterns and configuration.
 
 ## Development Notes
 - Update `pyproject.toml` or `server/requirements.txt` when adding dependencies, then run `uv lock`
