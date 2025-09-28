@@ -60,7 +60,7 @@ class RuntimeSessionManager:
                 "sts:GetCallerIdentity returned incomplete identity"
             )
 
-        uid = f"{account}/{user_id}/{arn}"
+        uid = json.dumps([account, user_id, arn], separators=(",", ":"))
         return hashlib.sha256(uid.encode("utf-8")).hexdigest()
 
     def next_session_id(self) -> str:
