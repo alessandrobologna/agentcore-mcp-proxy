@@ -72,9 +72,9 @@ smoke-test: ## Run smoke test against deployed runtime
 	@if [ -z "$(AGENTCORE_AGENT_ARN)" ]; then \
 		echo "Getting Agent ARN from stack outputs..."; \
 		export AGENTCORE_AGENT_ARN=$$(aws cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs[?OutputKey==`AgentRuntimeArn`].OutputValue' --output text); \
-		uv run scripts/proxy_smoketest.py "$$AGENTCORE_AGENT_ARN" --proxy-cmd uv run proxy/src/mcp_agentcore_proxy/cli.py; \
+		uv run scripts/proxy_smoketest.py "$$AGENTCORE_AGENT_ARN" --proxy-cmd uv run src/mcp_agentcore_proxy/cli.py; \
 	else \
-		uv run scripts/proxy_smoketest.py "$(AGENTCORE_AGENT_ARN)" --proxy-cmd uv run proxy/src/mcp_agentcore_proxy/cli.py; \
+		uv run scripts/proxy_smoketest.py "$(AGENTCORE_AGENT_ARN)" --proxy-cmd uv run src/mcp_agentcore_proxy/cli.py; \
 	fi
 
 clean: ## Remove local Docker images

@@ -21,7 +21,7 @@ sequenceDiagram
 The proxy keeps the MCP session alive locally and translates each request into `InvokeAgentRuntime` calls.[^invoke-api] Responses stream back as JSON-RPC messages. The sample FastMCP server demonstrates a simple Strands-based agent that uses the Bedrock `amazon.nova-micro-v1:0` model.
 
 ## Repository Layout
-- `proxy/` editable MCP STDIO proxy published as `mcp-agentcore-proxy`
+- `src/mcp_agentcore_proxy/` MCP STDIO proxy packaged as `mcp-agentcore-proxy`
 - `server/` FastMCP application packaged into a container for AgentCore
 - `scripts/` helper scripts including an end-to-end smoketest
 - `Makefile`, `template.yaml`, and `samconfig.toml` for building and deploying the demo stack
@@ -34,7 +34,7 @@ The proxy keeps the MCP session alive locally and translates each request into `
 
 ## Installing the Proxy Locally
 ```bash
-uv pip install -e proxy/
+uv pip install -e .
 ```
 Set the runtime ARN and region before launching the proxy.
 ```bash
@@ -45,7 +45,11 @@ export AWS_REGION="us-east-1"
 ## Running the Proxy with an MCP Client
 Invoke the CLI directly with uvx or any orchestrator that speaks MCP STDIO.
 ```bash
-uvx --from proxy/ mcp-agentcore-proxy
+uvx --from . mcp-agentcore-proxy
+```
+When launching directly from Git without cloning, target the repository root.
+```bash
+uvx --from git+https://github.com/alessandrobologna/agentcore-mcp-proxy mcp-agentcore-proxy
 ```
 The proxy validates IAM credentials with `sts:GetCallerIdentity`, derives a deterministic AgentCore `runtimeSessionId`, and relays MCP messages to the remote runtime. Standard output carries the JSON-RPC responses. Errors surface as structured MCP error payloads.
 
@@ -66,10 +70,10 @@ make deploy
 The Makefile handles Docker builds, ECR pushes, and SAM deployment. Stack outputs include the AgentCore runtime ARN. Run `make smoke-test` to resolve the ARN automatically and execute the smoketest against the deployed stack.
 
 ## Development Notes
-- Update `proxy/pyproject.toml` or `server/requirements.txt` when adding dependencies, then run `uv lock`
+- Update `pyproject.toml` or `server/requirements.txt` when adding dependencies, then run `uv lock`
 - Keep CLI output flushed to STDOUT to avoid blocking MCP clients
-- Add logic-heavy tests under `proxy/tests/` or `server/tests/` and run them with `uv run pytest`
-- Use `uvx --from proxy/ mcp-agentcore-proxy` during local iteration for fast reloads
+- Add logic-heavy tests under `tests/` or `server/tests/` and run them with `uv run pytest`
+- Use `uvx --from . mcp-agentcore-proxy` during local iteration for fast reloads
 
 ## Troubleshooting
 - `Set AGENTCORE_AGENT_ARN (or AGENT_ARN)` indicates the environment variable is missing

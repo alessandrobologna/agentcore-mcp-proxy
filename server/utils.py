@@ -1,7 +1,6 @@
 """Utilities for the MCP server."""
 
 import logging
-from typing import Any
 
 import anyio
 

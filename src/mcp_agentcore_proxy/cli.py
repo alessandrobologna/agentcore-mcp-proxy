@@ -17,8 +17,15 @@ from botocore.exceptions import BotoCoreError, ClientError
 DEFAULT_CONTENT_TYPE = "application/json"
 DEFAULT_ACCEPT = "application/json, text/event-stream"
 
+
 def _error_response(request_id: Any, code: int, message: str) -> str:
-    return json.dumps({"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}})
+    return json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "error": {"code": code, "message": message},
+        }
+    )
 
 
 def _emit_event_stream(body_stream: Any) -> None:
@@ -55,15 +62,20 @@ def _emit_event_stream(body_stream: Any) -> None:
 def main() -> None:
     agent_arn = os.getenv("AGENTCORE_AGENT_ARN") or os.getenv("AGENT_ARN")
     if not agent_arn:
-        print(_error_response(None, -32000, "Set AGENTCORE_AGENT_ARN (or AGENT_ARN)"), flush=True)
+        print(
+            _error_response(None, -32000, "Set AGENTCORE_AGENT_ARN (or AGENT_ARN)"),
+            flush=True,
+        )
         sys.exit(2)
-
 
     sts = boto3.client("sts")
     try:
         ident = sts.get_caller_identity()
     except (BotoCoreError, ClientError):
-        print(_error_response(None, -32000, "Unable to call sts:GetCallerIdentity"), flush=True)
+        print(
+            _error_response(None, -32000, "Unable to call sts:GetCallerIdentity"),
+            flush=True,
+        )
         sys.exit(2)
 
     uid = f"{ident.get('Account', '')}/{ident.get('UserId', '')}/{ident.get('Arn', '')}"
@@ -97,13 +109,27 @@ def main() -> None:
             )
         except (BotoCoreError, ClientError) as exc:
             detail = getattr(exc, "response", None)
-            message = json.dumps(detail, default=str) if isinstance(detail, dict) else str(exc)
-            print(_error_response(request_id, -32000, f"InvokeAgentRuntime error: {message}"), flush=True)
+            message = (
+                json.dumps(detail, default=str)
+                if isinstance(detail, dict)
+                else str(exc)
+            )
+            print(
+                _error_response(
+                    request_id, -32000, f"InvokeAgentRuntime error: {message}"
+                ),
+                flush=True,
+            )
             continue
 
         body_stream = response.get("response")
         if body_stream is None:
-            print(_error_response(request_id, -32001, "Missing response body from InvokeAgentRuntime"), flush=True)
+            print(
+                _error_response(
+                    request_id, -32001, "Missing response body from InvokeAgentRuntime"
+                ),
+                flush=True,
+            )
             continue
 
         try:
@@ -116,7 +142,12 @@ def main() -> None:
                 if body.strip():
                     print(body, flush=True)
         except Exception as exc:
-            print(_error_response(request_id, -32002, f"Failed to process response body: {exc}"), flush=True)
+            print(
+                _error_response(
+                    request_id, -32002, f"Failed to process response body: {exc}"
+                ),
+                flush=True,
+            )
 
 
 if __name__ == "__main__":
