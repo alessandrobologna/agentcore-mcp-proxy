@@ -18,7 +18,9 @@ from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
 
-async def _run_smoketest(cmd: Sequence[str], env: dict[str, str], city: str | None) -> None:
+async def _run_smoketest(
+    cmd: Sequence[str], env: dict[str, str], city: str | None
+) -> None:
     server_params = StdioServerParameters(command=cmd[0], args=list(cmd[1:]), env=env)
 
     async with stdio_client(server_params) as (read, write):
@@ -34,13 +36,17 @@ async def _run_smoketest(cmd: Sequence[str], env: dict[str, str], city: str | No
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Exercise the MCP AgentCore proxy via stdio")
-    parser.add_argument("agent_arn", help="AgentCore runtime ARN (exported to AGENTCORE_AGENT_ARN)")
+    parser = argparse.ArgumentParser(
+        description="Exercise the MCP AgentCore proxy via stdio"
+    )
+    parser.add_argument(
+        "agent_arn", help="AgentCore runtime ARN (exported to AGENTCORE_AGENT_ARN)"
+    )
     parser.add_argument("--city", help="Optional city for get_weather tool")
     parser.add_argument(
         "--proxy-cmd",
         nargs=argparse.REMAINDER,
-        help="Command launching the proxy (default: uvx --from proxy/ mcp-agentcore-proxy)",
+        help="Command launching the proxy (default: uvx --from . mcp-agentcore-proxy)",
     )
 
     args = parser.parse_args()
@@ -48,7 +54,7 @@ def main() -> None:
     cmd = args.proxy_cmd or [
         "uvx",
         "--from",
-        "proxy/",
+        ".",
         "mcp-agentcore-proxy",
     ]
 

@@ -12,7 +12,9 @@ import mcp as mcp_pkg
 from utils import SuppressClosedResourceErrors
 
 # Suppress noisy disconnect traces until upstream fix
-logging.getLogger("mcp.server.streamable_http").addFilter(SuppressClosedResourceErrors())
+logging.getLogger("mcp.server.streamable_http").addFilter(
+    SuppressClosedResourceErrors()
+)
 
 
 # Initialize FastMCP at module level (needed for decorators)
@@ -32,8 +34,9 @@ agent = Agent(
     system_prompt=(
         "You are a witty comedian. Produce short, original, family-friendly jokes about"
         " the requested topic. Responses must stay under 40 words and avoid offensive content."
-    )
+    ),
 )
+
 
 @mcp.tool()
 def get_weather(city: str) -> dict[str, Any]:
@@ -78,6 +81,8 @@ Keep it under 40 words."""
 if __name__ == "__main__":
     print("[boot] Weather MCP server starting…", flush=True)
     print(f"[boot] Python: {sys.version}", flush=True)
-    print(f"[boot] mcp version: {getattr(mcp_pkg, '__version__', 'unknown')}", flush=True)
+    print(
+        f"[boot] mcp version: {getattr(mcp_pkg, '__version__', 'unknown')}", flush=True
+    )
     print("[boot] Calling FastMCP.run(streamable-http)…", flush=True)
     mcp.run(transport="streamable-http")
