@@ -85,7 +85,7 @@ Configure VS Code MCP to launch the proxy with `uvx` and a pre-set runtime ARN. 
 ## Smoke Test
 `scripts/proxy_smoketest.py` exercises the proxy end to end by listing tools, calling `whoami` to reveal the sandbox identifier, fetching `get_weather` for New York, and asking `tell_joke` about programmers.
 ```bash
-uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN" --city "Seattle"
+uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
 ```
 The script spawns `mcp-agentcore-proxy` via STDIO, initializes an MCP session, and prints any tool output. Example output is illustrative. Actual costs depend on traffic patterns and configuration.
 

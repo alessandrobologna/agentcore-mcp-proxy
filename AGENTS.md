@@ -11,7 +11,7 @@ This repo couples a local MCP STDIO proxy with a Bedrock AgentCore demo runtime.
 - `uv pip install -e .` — install the CLI in editable mode while iterating.
 - `uvx --from . mcp-agentcore-proxy` — run the proxy locally against any MCP client.
 - Configure runtime affinity with `RUNTIME_SESSION_MODE` (`identity`, `session`, or `request`).
-- `uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN" --city "Seattle"` — smoke-test the proxy against a runtime; set `AWS_REGION`.
+- `uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"` — smoke-test the proxy against a runtime; set `AWS_REGION`.
 - `make build | push | deploy` — build the server image, push to ECR, and deploy the SAM stack.
 - `make smoke-test` — retrieve the deployed ARN, then invoke the smoketest via `uv run`.
 
