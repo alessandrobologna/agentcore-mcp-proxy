@@ -18,9 +18,7 @@ from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
 
-async def _run_smoketest(
-    cmd: Sequence[str], env: dict[str, str], city: str | None
-) -> None:
+async def _run_smoketest(cmd: Sequence[str], env: dict[str, str]) -> None:
     server_params = StdioServerParameters(command=cmd[0], args=list(cmd[1:]), env=env)
 
     async with stdio_client(server_params) as (read, write):
@@ -28,11 +26,20 @@ async def _run_smoketest(
             await session.initialize()
 
             tools = await session.list_tools()
-            print("Tools:", [tool.name for tool in tools.tools])
+            tool_names = [tool.name for tool in tools.tools]
+            print("Tools:", tool_names)
 
-            if city:
-                result = await session.call_tool("get_weather", {"city": city})
-                print("Weather:", result.content)
+            if "whoami" in tool_names:
+                whoami_result = await session.call_tool("whoami", {})
+                print("Sandbox:", whoami_result.content)
+
+            if "get_weather" in tool_names:
+                weather = await session.call_tool("get_weather", {"city": "New York"})
+                print("Weather:", weather.content)
+
+            if "tell_joke" in tool_names:
+                joke = await session.call_tool("tell_joke", {"topic": "programmers"})
+                print("Joke:", joke.content)
 
 
 def main() -> None:
@@ -42,7 +49,6 @@ def main() -> None:
     parser.add_argument(
         "agent_arn", help="AgentCore runtime ARN (exported to AGENTCORE_AGENT_ARN)"
     )
-    parser.add_argument("--city", help="Optional city for get_weather tool")
     parser.add_argument(
         "--proxy-cmd",
         nargs=argparse.REMAINDER,
@@ -61,7 +67,7 @@ def main() -> None:
     env = os.environ.copy()
     env.setdefault("AGENTCORE_AGENT_ARN", args.agent_arn)
 
-    asyncio.run(_run_smoketest(cmd, env, args.city))
+    asyncio.run(_run_smoketest(cmd, env))
 
 
 if __name__ == "__main__":

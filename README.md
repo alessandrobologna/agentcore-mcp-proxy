@@ -1,7 +1,9 @@
 # Amazon Bedrock AgentCore MCP Proxy
 
 ## Rationale
-Amazon Bedrock AgentCore currently requires the AgentCore gateway when hosting an MCP server.[^gateway-inbound] The gateway expects OIDC or Amazon Cognito for user access.[^cognito-auth] Many developer sandboxes rely on IAM credentials instead. This repository packages a local MCP STDIO proxy that signs requests with SigV4 and talks directly to the AgentCore runtime.[^runtime-how] Your local MCP client still interacts with a standard MCP interface while authentication happens through IAM.
+Amazon Bedrock AgentCore currently requires the AgentCore gateway when hosting an MCP server.[^gateway-inbound] The gateway expects OAuth 2.0 JWT Bearer Token Authentication with an OIDC provider, or Amazon Cognito for user access.[^cognito-auth] Many developer sandboxes rely on IAM authentication instead, using role granted with IAM Identity Center. This repository packages a local MCP stdio proxy that signs requests with SigV4 using the default authentication provider chain and talks directly to the AgentCore runtime.[^runtime-how] Your local MCP client still interacts with a standard stdio MCP interface while authentication happens through IAM.
+
+This approach is especially valuable when private network access to a VPC is unavailable or when configuring an OIDC authentication flow is impractical, and also if wanting to establish machine to machine MCP tool use. By leveraging SigV4 IAM authentication, the proxy transparently provides machine credentials and session-based identity, allowing secure and auditable M2M connections without requiring OAuth client credential (2LO) setup or JWT bearer tokens.
 
 ## Architecture
 ```mermaid
@@ -18,7 +20,7 @@ sequenceDiagram
     AgentCore-->>Proxy: SSE JSON payloads
     Proxy-->>MCPClient: MCP results
 ```
-The proxy keeps the MCP session alive locally and translates each request into `InvokeAgentRuntime` calls.[^invoke-api] Responses stream back as JSON-RPC messages. The sample FastMCP server demonstrates a simple Strands-based agent that uses the Bedrock `amazon.nova-micro-v1:0` model.
+The proxy keeps the MCP session alive locally and translates each request into `InvokeAgentRuntime` calls.[^invoke-api] Responses stream back as JSON-RPC messages. The sample FastMCP server demonstrates a simple Strands-based agent that uses the Bedrock `amazon.nova-micro-v1:0` model and exposes three tools: `get_weather`, `tell_joke`, and `whoami` (returns the sandbox identifier for the running instance).
 
 ## Repository Layout
 - `src/mcp_agentcore_proxy/` MCP STDIO proxy packaged as `mcp-agentcore-proxy`
@@ -51,7 +53,12 @@ When launching directly from Git without cloning, target the repository root.
 ```bash
 uvx --from git+https://github.com/alessandrobologna/agentcore-mcp-proxy mcp-agentcore-proxy
 ```
-The proxy validates IAM credentials with `sts:GetCallerIdentity`, derives a deterministic AgentCore `runtimeSessionId`, and relays MCP messages to the remote runtime. Standard output carries the JSON-RPC responses. Errors surface as structured MCP error payloads.
+The proxy validates IAM credentials with `sts:GetCallerIdentity`, derives an AgentCore `runtimeSessionId`, and relays MCP messages to the remote runtime. Standard output carries the JSON-RPC responses. Errors surface as structured MCP error payloads.
+
+Control how session identifiers are generated with `RUNTIME_SESSION_MODE`:
+- `identity` (default) hashes the caller identity returned by `sts:GetCallerIdentity`.
+- `session` creates a random session ID once when the proxy starts.
+- `request` generates a new session ID for every MCP request.
 
 ### VS Code MCP Client Example
 Configure VS Code MCP to launch the proxy with `uvx` and a pre-set runtime ARN. Replace the ARN value with the runtime you deploy.
@@ -76,7 +83,7 @@ Configure VS Code MCP to launch the proxy with `uvx` and a pre-set runtime ARN. 
 ```
 
 ## Smoke Test
-`scripts/proxy_smoketest.py` exercises the proxy end to end by listing tools and optionally calling `get_weather`.
+`scripts/proxy_smoketest.py` exercises the proxy end to end by listing tools, calling `whoami` to reveal the sandbox identifier, fetching `get_weather` for New York, and asking `tell_joke` about programmers.
 ```bash
 uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN" --city "Seattle"
 ```
@@ -119,7 +126,7 @@ These commands incur AWS usage. Example output is illustrative. Actual costs dep
 - Empty responses usually mean the remote AgentCore runtime closed the stream without data; confirm the deployed server accepts MCP requests
 
 ## Security Considerations
-The proxy never writes credentials to disk and relies on the default AWS credential chain. Use dedicated IAM principals with the minimum scope required by Bedrock AgentCore. Rotate credentials frequently and audit CloudTrail events for unexpected runtime invocations.
+The proxy relies on the default AWS credential chain. Use dedicated IAM principals with the minimum scope required by Bedrock AgentCore. 
 
 ## License
 This repository is licensed under the MIT License. See `LICENSE` for details.

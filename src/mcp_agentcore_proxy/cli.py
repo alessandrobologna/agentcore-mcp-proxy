@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 import boto3
@@ -16,6 +17,67 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 DEFAULT_CONTENT_TYPE = "application/json"
 DEFAULT_ACCEPT = "application/json, text/event-stream"
+
+
+class RuntimeSessionError(Exception):
+    """Raised when a runtime session ID cannot be established."""
+
+
+@dataclass(frozen=True)
+class RuntimeSessionConfig:
+    mode: str
+
+
+class RuntimeSessionManager:
+    """Resolve AgentCore runtime session IDs based on configuration."""
+
+    def __init__(self, config: RuntimeSessionConfig):
+        self._mode = config.mode
+        self._session_id: str | None = None
+
+        if self._mode == "identity":
+            self._session_id = self._derive_identity_session_id()
+        elif self._mode == "session":
+            self._session_id = uuid.uuid4().hex
+        elif self._mode == "request":
+            self._session_id = None
+        else:
+            raise RuntimeSessionError(f"Unsupported runtime session mode: {self._mode}")
+
+    @staticmethod
+    def _derive_identity_session_id() -> str:
+        sts = boto3.client("sts")
+        try:
+            ident = sts.get_caller_identity()
+        except (BotoCoreError, ClientError) as exc:
+            raise RuntimeSessionError("Unable to call sts:GetCallerIdentity") from exc
+
+        account = ident.get("Account")
+        user_id = ident.get("UserId")
+        arn = ident.get("Arn")
+        if not all([account, user_id, arn]):
+            raise RuntimeSessionError(
+                "sts:GetCallerIdentity returned incomplete identity"
+            )
+
+        uid = f"{account}/{user_id}/{arn}"
+        return hashlib.sha256(uid.encode("utf-8")).hexdigest()
+
+    def next_session_id(self) -> str:
+        if self._mode == "request":
+            return uuid.uuid4().hex
+
+        if not self._session_id:
+            raise RuntimeSessionError("Runtime session ID was not initialized")
+
+        return self._session_id
+
+
+def _resolve_runtime_session_config() -> RuntimeSessionConfig:
+    mode_env = (os.getenv("RUNTIME_SESSION_MODE") or "").strip().lower()
+    if mode_env:
+        return RuntimeSessionConfig(mode=mode_env)
+    return RuntimeSessionConfig(mode="identity")
 
 
 def _error_response(request_id: Any, code: int, message: str) -> str:
@@ -68,18 +130,13 @@ def main() -> None:
         )
         sys.exit(2)
 
-    sts = boto3.client("sts")
-    try:
-        ident = sts.get_caller_identity()
-    except (BotoCoreError, ClientError):
-        print(
-            _error_response(None, -32000, "Unable to call sts:GetCallerIdentity"),
-            flush=True,
-        )
-        sys.exit(2)
+    config = _resolve_runtime_session_config()
 
-    uid = f"{ident.get('Account', '')}/{ident.get('UserId', '')}/{ident.get('Arn', '')}"
-    runtime_session_id = hashlib.sha256(uid.encode("utf-8")).hexdigest()
+    try:
+        session_manager = RuntimeSessionManager(config)
+    except RuntimeSessionError as exc:
+        print(_error_response(None, -32000, str(exc)), flush=True)
+        sys.exit(2)
 
     client = boto3.client("bedrock-agentcore")
 
@@ -99,10 +156,12 @@ def main() -> None:
         mcp_session_id = "mcp-" + uuid.uuid4().hex
 
         try:
+            next_runtime_session_id = session_manager.next_session_id()
+
             response = client.invoke_agent_runtime(
                 agentRuntimeArn=agent_arn,
                 payload=line.encode("utf-8"),
-                runtimeSessionId=runtime_session_id,
+                runtimeSessionId=next_runtime_session_id,
                 mcpSessionId=mcp_session_id,
                 contentType=DEFAULT_CONTENT_TYPE,
                 accept=DEFAULT_ACCEPT,
