@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import sys
+import uuid
 from typing import Any
 
 from strands import Agent
@@ -29,6 +30,8 @@ mcp = FastMCP(
 # Global instances
 app = mcp.streamable_http_app()
 model = BedrockModel(model_id="amazon.nova-micro-v1:0")
+SANDBOX_ID = str(uuid.uuid4())
+
 agent = Agent(
     model=model,
     system_prompt=(
@@ -76,6 +79,13 @@ Keep it under 40 words."""
             joke_text = result.content.strip()
 
     return {"topic": topic, "message": joke_text}
+
+
+@mcp.tool()
+def whoami() -> dict[str, Any]:
+    """Return the sandbox identifier for this MCP demo server."""
+
+    return {"sandbox_id": SANDBOX_ID}
 
 
 if __name__ == "__main__":
