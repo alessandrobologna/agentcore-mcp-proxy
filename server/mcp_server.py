@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import os
 import sys
 from typing import Any
 
@@ -23,7 +24,7 @@ mcp = FastMCP(
     host="0.0.0.0",
     stateless_http=True,
     json_response=True,
-    log_level="INFO",
+    log_level=os.getenv("LOG_LEVEL", "WARNING"),
     streamable_http_path="/mcp/",
 )
 
@@ -98,11 +99,7 @@ def whoami(context: Context | None = None) -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    print("[boot] Weather MCP server starting…", flush=True)
+    print("[boot] Demo MCP server starting…", flush=True)
     print(f"[boot] Python: {sys.version}", flush=True)
-    print(
-        f"[boot] mcp version: {getattr(mcp_pkg, '__version__', 'unknown')}", flush=True
-    )
-    print("[boot] Calling FastMCP.run(streamable-http)…", flush=True)
+    print("[boot] Calling FastMCP.run(streamable-http)", flush=True)
     mcp.run(transport="streamable-http")
-    print("[boot] Weather MCP server exiting", flush=True)
