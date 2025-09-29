@@ -74,7 +74,7 @@ Configure VS Code MCP to launch the proxy with `uvx` and a pre-set runtime ARN. 
         "mcp-agentcore-proxy"
       ],
       "env": {
-        "AGENTCORE_AGENT_ARN": "arn:aws:bedrock:us-east-1:123456789012:agent-runtime/example"
+        "AGENTCORE_AGENT_ARN": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/example"
       }
     }
   },
