@@ -23,4 +23,4 @@ COPY --from=builder /opt/venv /opt/venv
 COPY mcp_server.py utils.py ./
 
 EXPOSE 8000
-CMD ["opentelemetry-instrument","python","-m","uvicorn","mcp_server:app","--host","0.0.0.0","--port","8000"]
+CMD ["opentelemetry-instrument","python","-m", "mcp_server"]

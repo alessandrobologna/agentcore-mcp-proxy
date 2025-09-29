@@ -1,13 +1,14 @@
 import hashlib
 import logging
+import os
 import sys
-import uuid
 from typing import Any
 
 from strands import Agent
 from strands.models import BedrockModel
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import Context
 import mcp as mcp_pkg
 
 from utils import SuppressClosedResourceErrors
@@ -23,14 +24,12 @@ mcp = FastMCP(
     host="0.0.0.0",
     stateless_http=True,
     json_response=True,
-    log_level="WARNING",
+    log_level=os.getenv("LOG_LEVEL", "WARNING").upper(),
     streamable_http_path="/mcp/",
 )
 
 # Global instances
-app = mcp.streamable_http_app()
 model = BedrockModel(model_id="amazon.nova-micro-v1:0")
-SANDBOX_ID = str(uuid.uuid4())
 
 agent = Agent(
     model=model,
@@ -82,17 +81,25 @@ Keep it under 40 words."""
 
 
 @mcp.tool()
-def whoami() -> dict[str, Any]:
+def whoami(context: Context | None = None) -> dict[str, Any]:
     """Return the sandbox identifier for this MCP demo server."""
 
-    return {"sandbox_id": SANDBOX_ID}
+    sandbox_id: str | None = None
+
+    if context is not None:
+        try:
+            request = context.request_context.request
+        except ValueError:
+            request = None
+
+        if request is not None:
+            sandbox_id = request.headers.get("mcp-session-id")
+
+    return {"sandbox_id": sandbox_id}
 
 
 if __name__ == "__main__":
-    print("[boot] Weather MCP server starting…", flush=True)
+    print("[boot] Demo MCP server starting…", flush=True)
     print(f"[boot] Python: {sys.version}", flush=True)
-    print(
-        f"[boot] mcp version: {getattr(mcp_pkg, '__version__', 'unknown')}", flush=True
-    )
-    print("[boot] Calling FastMCP.run(streamable-http)…", flush=True)
+    print("[boot] Calling FastMCP.run(streamable-http)", flush=True)
     mcp.run(transport="streamable-http")

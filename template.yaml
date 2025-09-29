@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Weather MCP server on Amazon Bedrock AgentCore Runtime (IAM-only)
+Description: Demo MCP server on Amazon Bedrock AgentCore Runtime
 
 Parameters:
   ContainerImageURI:
@@ -25,7 +25,7 @@ Parameters:
     Description: Network mode for the runtime endpoint
   Description:
     Type: String
-    Default: Weather MCP demo server hosted on Bedrock AgentCore Runtime (IAM-only)
+    Default: MCP demo server hosted on Bedrock AgentCore Runtime
 
 Resources:
   RuntimeExecutionRole:
@@ -69,8 +69,6 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource:
-                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*
-                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*
                   - '*'
               - Sid: XRay
                 Effect: Allow
@@ -105,14 +103,11 @@ Resources:
                   - arn:aws:bedrock:*::foundation-model/*
                   - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:*
 
-  WeatherAgentRuntime:
+  DemoAgentRuntime:
     Type: AWS::BedrockAgentCore::Runtime
     Properties:
       AgentRuntimeName: !Ref AgentRuntimeName
       Description: !Ref Description
-      EnvironmentVariables:
-        MCP_HTTP_PATH: /mcp
-        MCP_HTTP_PORT: "8000"
       AgentRuntimeArtifact:
         ContainerConfiguration:
           ContainerUri: !Ref ContainerImageURI
@@ -121,23 +116,24 @@ Resources:
         NetworkMode: !Ref NetworkMode
       ProtocolConfiguration: !Ref ProtocolConfiguration
       Tags:
-        Project: agentcore-weather
+        Project: agentcore-demo
         Environment: demo
       EnvironmentVariables:
         MCP_HTTP_PATH: /mcp
         MCP_HTTP_PORT: "8000"
+        LOG_LEVEL: WARNING
         AGENT_RUNTIME_NAME: !Ref AgentRuntimeName
 
 Outputs:
   AgentRuntimeArn:
     Description: ARN of the Bedrock AgentCore runtime
-    Value: !GetAtt WeatherAgentRuntime.AgentRuntimeArn
+    Value: !GetAtt DemoAgentRuntime.AgentRuntimeArn
   AgentRuntimeRoleArn:
     Description: Execution role ARN used by the runtime container
     Value: !GetAtt RuntimeExecutionRole.Arn
   AgentRuntimeId:
     Description: Runtime ID
-    Value: !GetAtt WeatherAgentRuntime.AgentRuntimeId
+    Value: !GetAtt DemoAgentRuntime.AgentRuntimeId
   AgentRuntimeVersion:
     Description: Runtime version
-    Value: !GetAtt WeatherAgentRuntime.AgentRuntimeVersion
+    Value: !GetAtt DemoAgentRuntime.AgentRuntimeVersion

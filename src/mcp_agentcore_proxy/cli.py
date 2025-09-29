@@ -38,7 +38,7 @@ class RuntimeSessionManager:
         if self._mode == "identity":
             self._session_id = self._derive_identity_session_id()
         elif self._mode == "session":
-            self._session_id = uuid.uuid4().hex
+            self._session_id = str(uuid.uuid4())
         elif self._mode == "request":
             self._session_id = None
         else:
@@ -65,7 +65,7 @@ class RuntimeSessionManager:
 
     def next_session_id(self) -> str:
         if self._mode == "request":
-            return uuid.uuid4().hex
+            return str(uuid.uuid4())
 
         if not self._session_id:
             raise RuntimeSessionError("Runtime session ID was not initialized")
@@ -153,11 +153,9 @@ def main() -> None:
 
         request_id = parsed.get("id") if isinstance(parsed, dict) else None
 
-        mcp_session_id = "mcp-" + uuid.uuid4().hex
-
         try:
             next_runtime_session_id = session_manager.next_session_id()
-
+            mcp_session_id = f"mcp-{next_runtime_session_id}"
             response = client.invoke_agent_runtime(
                 agentRuntimeArn=agent_arn,
                 payload=line.encode("utf-8"),
