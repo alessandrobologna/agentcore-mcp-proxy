@@ -24,7 +24,7 @@ mcp = FastMCP(
     host="0.0.0.0",
     stateless_http=True,
     json_response=True,
-    log_level=os.getenv("LOG_LEVEL", "WARNING"),
+    log_level=os.getenv("LOG_LEVEL", "WARNING").upper(),
     streamable_http_path="/mcp/",
 )
 
