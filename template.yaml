@@ -108,10 +108,6 @@ Resources:
     Properties:
       AgentRuntimeName: !Ref AgentRuntimeName
       Description: !Ref Description
-      EnvironmentVariables:
-        MCP_HTTP_PATH: /mcp
-        MCP_HTTP_PORT: "8000"
-        LOG_LEVEL: WARNING
       AgentRuntimeArtifact:
         ContainerConfiguration:
           ContainerUri: !Ref ContainerImageURI
