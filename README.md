@@ -86,7 +86,7 @@ Configure VS Code MCP to launch the proxy with `uvx` and a pre-set runtime ARN. 
 The proxy can assume an IAM role before invoking AgentCore to support cross-account access or tighter scoping.
 
 - Set `AGENTCORE_ASSUME_ROLE_ARN` to the role ARN to assume. When unset, current credentials are used.
-- Optionally set `AGENTCORE_ASSUME_ROLE_SESSION_NAME` to customize the STS session name.
+- Optionally set `AGENTCORE_ASSUME_ROLE_SESSION_NAME` to customize the STS session name. Defaults to `"mcpAgentCoreProxy"`.
 
 Example:
 ```bash

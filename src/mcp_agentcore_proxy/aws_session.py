@@ -29,7 +29,7 @@ def resolve_aws_session() -> boto3.session.Session:
         return boto3.session.Session()
 
     session_name_env = (os.getenv("AGENTCORE_ASSUME_ROLE_SESSION_NAME") or "").strip()
-    session_name = session_name_env or f"mcpAgentCoreProxy-{uuid.uuid4().hex}"
+    session_name = session_name_env or "mcpAgentCoreProxy"
 
     sts = boto3.client("sts")
     try:
