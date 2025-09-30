@@ -82,6 +82,30 @@ Configure VS Code MCP to launch the proxy with `uvx` and a pre-set runtime ARN. 
 }
 ```
 
+## Cross-Account Use (Assume Role)
+The proxy can assume an IAM role before invoking AgentCore to support cross-account access or tighter scoping.
+
+- Set `AGENTCORE_ASSUME_ROLE_ARN` to the role ARN to assume. When unset, current credentials are used.
+- Optionally set `AGENTCORE_ASSUME_ROLE_SESSION_NAME` to customize the STS session name. Defaults to `"mcpAgentCoreProxy"`.
+
+Example:
+```bash
+export AGENTCORE_ASSUME_ROLE_ARN="arn:aws:iam::111122223333:role/AgentCoreProxyInvokeRole"
+uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
+```
+
+When deploying the sample stack, a test role is provisioned:
+- Output `ProxyInvokeRoleArn` exposes the assumable role ARN.
+- The role trusts the deploying account's root principal and allows `bedrock-agentcore:InvokeAgentRuntime` on the deployed runtime.
+
+Using the generated role:
+```bash
+make deploy
+export AGENTCORE_ASSUME_ROLE_ARN="$(make -s outputs | jq -r '.[] | select(.OutputKey=="ProxyInvokeRoleArn") | .OutputValue')"
+uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
+```
+This command requires the `jq` CLI to filter the CloudFormation outputs.
+
 ## Smoke Test
 `scripts/proxy_smoketest.py` exercises the proxy end to end by listing tools, calling `whoami` to reveal the sandbox identifier, fetching `get_weather` for New York, and asking `tell_joke` about programmers.
 ```bash
@@ -124,6 +148,7 @@ These commands incur AWS usage. Example output is illustrative. Actual costs dep
 - `Unable to call sts:GetCallerIdentity` points to missing IAM credentials or wrong region
 - `InvokeAgentRuntime error` payloads mirror the AWS API response; inspect the JSON for permission or runtime issues
 - Empty responses usually mean the remote AgentCore runtime closed the stream without data; confirm the deployed server accepts MCP requests
+ - Assume role errors: verify `AGENTCORE_ASSUME_ROLE_ARN` is correct, your caller has `sts:AssumeRole`, the role trust policy includes your account, and the role allows `bedrock-agentcore:InvokeAgentRuntime` on the target runtime.
 
 ## Security Considerations
 The proxy relies on the default AWS credential chain. Use dedicated IAM principals with the minimum scope required by Bedrock AgentCore. 

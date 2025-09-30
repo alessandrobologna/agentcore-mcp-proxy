@@ -119,11 +119,34 @@ Resources:
         Project: agentcore-demo
         Environment: demo
       EnvironmentVariables:
-        MCP_HTTP_PATH: /mcp
-        MCP_HTTP_PORT: "8000"
         LOG_LEVEL: WARNING
         AGENT_RUNTIME_NAME: !Ref AgentRuntimeName
 
+  # Role that can be assumed to invoke the runtime for cross-account access
+  # for testing purposes, we are just trusting the same account
+  ProxyInvokeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Test role assumed by the MCP proxy to invoke AgentCore runtime
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AgentCoreInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: InvokeAgentRuntime
+                Effect: Allow
+                Action:
+                  - bedrock-agentcore:InvokeAgentRuntime
+                Resource:
+                  - !GetAtt DemoAgentRuntime.AgentRuntimeArn
+                  - !Sub '${DemoAgentRuntime.AgentRuntimeArn}/runtime-endpoint/*'
 Outputs:
   AgentRuntimeArn:
     Description: ARN of the Bedrock AgentCore runtime
@@ -137,3 +160,6 @@ Outputs:
   AgentRuntimeVersion:
     Description: Runtime version
     Value: !GetAtt DemoAgentRuntime.AgentRuntimeVersion
+  ProxyInvokeRoleArn:
+    Description: ARN of the test role that can be assumed to invoke the runtime
+    Value: !GetAtt ProxyInvokeRole.Arn
