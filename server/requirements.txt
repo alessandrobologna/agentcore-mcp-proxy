@@ -1,3 +1,0 @@
-mcp==1.15.0
-uvicorn==0.37.0
-strands-agents>=1.9.0
