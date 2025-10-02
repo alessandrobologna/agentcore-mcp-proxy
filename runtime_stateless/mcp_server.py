@@ -129,12 +129,4 @@ def submit_character_profile(character: str, traits: str, motivation: str) -> di
 
 
 if __name__ == "__main__":
-    print("[boot] Demo MCP server starting…", flush=True)
-    print(f"[boot] Python: {sys.version}", flush=True)
-    print("[boot] Calling FastMCP.run(streamable-http)", flush=True)
-    for key, value in os.environ.items():
-        print(f"[env] {key}={value}", flush=True)
-    try:
-        mcp.run(transport="streamable-http")
-    except Exception as exc:  # pragma: no cover - demo logging
-        print(f"[error] MCP server encountered an error: {exc}", flush=True)
+    mcp.run(transport="streamable-http")
