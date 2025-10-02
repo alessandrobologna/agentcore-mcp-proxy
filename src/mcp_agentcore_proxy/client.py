@@ -14,6 +14,7 @@ from typing import Any
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from mcp_agentcore_proxy.aws_session import AssumeRoleError, resolve_aws_session
@@ -31,7 +32,7 @@ def _resolve_runtime_session_config() -> RuntimeSessionConfig:
     mode_env = (os.getenv("RUNTIME_SESSION_MODE") or "").strip().lower()
     if mode_env:
         return RuntimeSessionConfig(mode=mode_env)
-    return RuntimeSessionConfig(mode="identity")
+    return RuntimeSessionConfig(mode="session")
 
 
 def _error_response(request_id: Any, code: int, message: str) -> str:
@@ -98,7 +99,12 @@ def main() -> None:
         print(_error_response(None, -32000, str(exc)), flush=True)
         sys.exit(2)
 
-    client = session.client("bedrock-agentcore")
+    client_config = Config(
+        read_timeout=int(os.getenv("AGENTCORE_READ_TIMEOUT", "300")),
+        connect_timeout=int(os.getenv("AGENTCORE_CONNECT_TIMEOUT", "10")),
+        retries={"max_attempts": 2},
+    )
+    client = session.client("bedrock-agentcore", config=client_config)
 
     for raw_line in sys.stdin:
         line = raw_line.strip()

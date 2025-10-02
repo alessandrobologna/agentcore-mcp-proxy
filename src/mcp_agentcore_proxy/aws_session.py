@@ -1,6 +1,6 @@
 """AWS session management with optional role assumption."""
+
 import os
-import uuid
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -33,7 +33,9 @@ def resolve_aws_session() -> boto3.session.Session:
 
     sts = boto3.client("sts")
     try:
-        response = sts.assume_role(RoleArn=assume_role_arn, RoleSessionName=session_name)
+        response = sts.assume_role(
+            RoleArn=assume_role_arn, RoleSessionName=session_name
+        )
     except (BotoCoreError, ClientError) as exc:
         raise AssumeRoleError(
             f"Unable to assume role {assume_role_arn}: {exc}"

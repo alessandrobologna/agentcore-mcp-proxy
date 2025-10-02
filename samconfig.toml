@@ -1,9 +1,9 @@
 version = 0.1
 
 [default.deploy.parameters]
-stack_name = "agentcore-proxy-demo-server"
+stack_name = "agentcore-proxy-demo-servers"
 resolve_s3 = true
-s3_prefix = "agentcore-proxy-demo-server"
+s3_prefix = "agentcore-proxy-demo-servers"
 region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
