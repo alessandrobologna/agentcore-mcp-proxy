@@ -36,10 +36,13 @@ def _resolve_runtime_session_config() -> RuntimeSessionConfig:
 
 
 def _error_response(request_id: Any, code: int, message: str) -> str:
+    # Per JSON-RPC spec: if id is null, it's a notification and should not have a response
+    # If we can't determine the id, use -1 as a sentinel value
+    response_id = request_id if request_id is not None else -1
     return json.dumps(
         {
             "jsonrpc": "2.0",
-            "id": request_id,
+            "id": response_id,
             "error": {"code": code, "message": message},
         }
     )
@@ -119,6 +122,17 @@ def main() -> None:
 
         request_id = parsed.get("id") if isinstance(parsed, dict) else None
 
+        # Skip notifications EXCEPT for 'notifications/initialized' which the server needs
+        # Notifications don't expect a response, so we won't wait for one
+        is_notification = request_id is None and isinstance(parsed, dict)
+        is_initialized_notification = (
+            is_notification and parsed.get("method") == "notifications/initialized"
+        )
+
+        # Skip all notifications except notifications/initialized
+        if is_notification and not is_initialized_notification:
+            continue
+
         try:
             next_runtime_session_id = session_manager.next_session_id()
             response = client.invoke_agent_runtime(
@@ -130,7 +144,17 @@ def main() -> None:
                 accept=DEFAULT_ACCEPT,
             )
         except (BotoCoreError, ClientError) as exc:
+            # HTTP 204 (No Content) is the correct response for notifications
+            # Don't treat it as an error when we're sending a notification
             detail = getattr(exc, "response", None)
+            if (
+                is_initialized_notification
+                and isinstance(detail, dict)
+                and detail.get("Error", {}).get("Message", "").startswith("Received error (204)")
+            ):
+                # Silently ignore 204 for notifications - it's expected
+                continue
+
             message = (
                 json.dumps(detail, default=str)
                 if isinstance(detail, dict)
