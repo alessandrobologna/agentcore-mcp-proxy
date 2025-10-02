@@ -151,7 +151,7 @@ class MCPSubprocess:
             line = await reader.readline()
             if not line:
                 return
-            logger.warning(
+            logger.debug(
                 "[subprocess-stderr] %s",
                 line.decode("utf-8", errors="replace").rstrip(),
             )

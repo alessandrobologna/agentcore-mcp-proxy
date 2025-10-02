@@ -45,6 +45,15 @@ def _error_response(request_id: Any, code: int, message: str) -> str:
     )
 
 
+def _print_error(request_id: Any, code: int, message: str) -> None:
+    """Print JSON-RPC error response to stdout, skipping notifications."""
+    # Per JSON-RPC spec: notifications (requests without id) should not receive responses
+    # Exception: parse errors must send error response with id=null per spec
+    if request_id is None and code != -32700:
+        return
+    print(_error_response(request_id, code, message), flush=True)
+
+
 def _emit_event_stream(body_stream: Any) -> None:
     """Stream Server-Sent Events from AgentCore back to STDOUT."""
     event_data = []
@@ -79,10 +88,7 @@ def _emit_event_stream(body_stream: Any) -> None:
 def main() -> None:
     agent_arn = os.getenv("AGENTCORE_AGENT_ARN") or os.getenv("AGENT_ARN")
     if not agent_arn:
-        print(
-            _error_response(None, -32000, "Set AGENTCORE_AGENT_ARN (or AGENT_ARN)"),
-            flush=True,
-        )
+        print("Error: Set AGENTCORE_AGENT_ARN (or AGENT_ARN)", file=sys.stderr, flush=True)
         sys.exit(2)
 
     config = _resolve_runtime_session_config()
@@ -90,13 +96,13 @@ def main() -> None:
     try:
         session_manager = RuntimeSessionManager(config)
     except RuntimeSessionError as exc:
-        print(_error_response(None, -32000, str(exc)), flush=True)
+        print(f"Error: {exc}", file=sys.stderr, flush=True)
         sys.exit(2)
 
     try:
         session = resolve_aws_session()
     except AssumeRoleError as exc:
-        print(_error_response(None, -32000, str(exc)), flush=True)
+        print(f"Error: {exc}", file=sys.stderr, flush=True)
         sys.exit(2)
 
     client_config = Config(
@@ -114,10 +120,21 @@ def main() -> None:
         try:
             parsed = json.loads(line)
         except json.JSONDecodeError as exc:
-            print(_error_response(None, -32700, f"Parse error: {exc}"), flush=True)
+            _print_error(None, -32700, f"Parse error: {exc}")
             continue
 
         request_id = parsed.get("id") if isinstance(parsed, dict) else None
+
+        # Skip notifications EXCEPT for 'notifications/initialized' which the server needs
+        # Notifications don't expect a response, so we won't wait for one
+        is_notification = request_id is None and isinstance(parsed, dict)
+        is_initialized_notification = (
+            is_notification and parsed.get("method") == "notifications/initialized"
+        )
+
+        # Skip all notifications except notifications/initialized
+        if is_notification and not is_initialized_notification:
+            continue
 
         try:
             next_runtime_session_id = session_manager.next_session_id()
@@ -130,27 +147,29 @@ def main() -> None:
                 accept=DEFAULT_ACCEPT,
             )
         except (BotoCoreError, ClientError) as exc:
+            # HTTP 204 (No Content) is the correct response for notifications
+            # Don't treat it as an error when we're sending a notification
             detail = getattr(exc, "response", None)
+            if (
+                is_initialized_notification
+                and isinstance(detail, dict)
+                and detail.get("ResponseMetadata", {}).get("HTTPStatusCode") == 204
+            ):
+                # Silently ignore 204 for notifications - it's expected
+                continue
+
             message = (
                 json.dumps(detail, default=str)
                 if isinstance(detail, dict)
                 else str(exc)
             )
-            print(
-                _error_response(
-                    request_id, -32000, f"InvokeAgentRuntime error: {message}"
-                ),
-                flush=True,
-            )
+            _print_error(request_id, -32000, f"InvokeAgentRuntime error: {message}")
             continue
 
         body_stream = response.get("response")
         if body_stream is None:
-            print(
-                _error_response(
-                    request_id, -32001, "Missing response body from InvokeAgentRuntime"
-                ),
-                flush=True,
+            _print_error(
+                request_id, -32001, "Missing response body from InvokeAgentRuntime"
             )
             continue
 
@@ -164,12 +183,7 @@ def main() -> None:
                 if body.strip():
                     print(body, flush=True)
         except Exception as exc:
-            print(
-                _error_response(
-                    request_id, -32002, f"Failed to process response body: {exc}"
-                ),
-                flush=True,
-            )
+            _print_error(request_id, -32002, f"Failed to process response body: {exc}")
 
 
 if __name__ == "__main__":
