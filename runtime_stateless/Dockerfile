@@ -23,5 +23,4 @@ COPY --from=builder /opt/venv /opt/venv
 COPY runtime_stateless/mcp_server.py runtime_stateless/utils.py ./
 
 EXPOSE 8000
-# CMD ["opentelemetry-instrument","python","-m", "mcp_server"]
 CMD ["python","-m", "mcp_server"]
