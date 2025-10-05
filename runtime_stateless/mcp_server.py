@@ -1,7 +1,6 @@
 import hashlib
 import logging
 import os
-import sys
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -111,14 +110,24 @@ def request_character_profile(character: str) -> dict[str, Any]:
         "prompt": prompt,
         "character": character,
         "fields": [
-            {"name": "traits", "description": "Key personality traits", "type": "string"},
-            {"name": "motivation", "description": "Primary goal or motivation", "type": "string"},
+            {
+                "name": "traits",
+                "description": "Key personality traits",
+                "type": "string",
+            },
+            {
+                "name": "motivation",
+                "description": "Primary goal or motivation",
+                "type": "string",
+            },
         ],
     }
 
 
 @mcp.tool(description="Receive character details supplied by the client.")
-def submit_character_profile(character: str, traits: str, motivation: str) -> dict[str, Any]:
+def submit_character_profile(
+    character: str, traits: str, motivation: str
+) -> dict[str, Any]:
     """Receive elicited character details from the client."""
 
     return {

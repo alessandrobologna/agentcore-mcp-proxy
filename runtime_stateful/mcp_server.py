@@ -8,7 +8,10 @@ from mcp.server.fastmcp.server import Context
 from pydantic import BaseModel
 
 
-mcp = FastMCP(json_response=True)
+mcp = FastMCP(
+    json_response=True,
+    log_level=os.getenv("LOG_LEVEL", "WARNING").upper(),
+)
 
 
 def _deterministic_weather(city: str) -> dict[str, Any]:
@@ -90,7 +93,9 @@ async def generate_story_with_sampling(
 
 
 @mcp.tool(description="Elicit a concise character profile via client-side elicitation.")
-async def create_character_profile(character: str, context: Context | None = None) -> dict[str, Any]:
+async def create_character_profile(
+    character: str, context: Context | None = None
+) -> dict[str, Any]:
     if context is None:
         return {"error": "Elicitation requires request context"}
 
