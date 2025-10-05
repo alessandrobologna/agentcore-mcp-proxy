@@ -30,7 +30,7 @@ jobs:
       - name: Ruff format (check)
         run: uvx ruff format --check
       - name: Run pytest
-        run: uv run --system pytest tests/
+        run: pytest tests/
 
   publish:
     needs: test
