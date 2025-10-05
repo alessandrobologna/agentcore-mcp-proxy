@@ -25,6 +25,20 @@ logging.basicConfig(
 logger = logging.getLogger("mcp_agentcore_proxy.server")
 
 
+class _SuppressPingFilter(logging.Filter):
+    """Filter out access logs for the /ping endpoint."""
+
+    def filter(self, record: logging.LogRecord) -> bool:  # type: ignore[override]
+        try:
+            path = record.args[2]
+        except (IndexError, TypeError, AttributeError):
+            return True
+        return path != "/ping"
+
+
+logging.getLogger("uvicorn.access").addFilter(_SuppressPingFilter())
+
+
 class MCPServerError(Exception):
     """Raised when the MCP subprocess cannot be used."""
 
@@ -252,7 +266,28 @@ def _build_app() -> FastAPI:
         nonlocal session_id
         if session_id is None:
             session_id = interesting.get("x-amzn-bedrock-agentcore-runtime-session-id")
-        return payload.strip()
+        payload = payload.strip()
+
+        if payload:
+            try:
+                parsed = json.loads(payload)
+            except json.JSONDecodeError:
+                parsed = None
+            if (
+                isinstance(parsed, dict)
+                and parsed.get("method") == "initialize"
+                and isinstance(parsed.get("params"), dict)
+            ):
+                params = parsed["params"]
+                client_info = params.get("clientInfo")
+                client_capabilities = params.get("capabilities")
+                logger.info(
+                    "Initialize request received: client_info=%s capabilities=%s",
+                    client_info,
+                    client_capabilities,
+                )
+
+        return payload
 
     @app.post("/invocations")
     async def handle_invocation(payload: str = Depends(_read_payload)) -> JSONResponse:

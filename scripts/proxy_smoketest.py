@@ -82,9 +82,7 @@ async def _sampling_callback(
     joined = " ".join(pieces) if pieces else "(no content)"
     lower_joined = joined.lower()
     if "write a short" in lower_joined and "story" in lower_joined:
-        text = (
-            "A guide followed the river at dusk, helping travelers cross safely before resting beside the water."
-        )
+        text = "A guide followed the river at dusk, helping travelers cross safely before resting beside the water."
     else:
         text = f"Smoketest summary: {joined[:160]}"
 
@@ -134,13 +132,13 @@ async def _exercise_stateless(session: ClientSession, tool_names: list[str]) -> 
 
     click.secho("\nStory", fg="cyan", bold=True)
     if {"request_story", "submit_story"}.issubset(set(tool_names)):
-        story_request = await session.call_tool("request_story", {"topic": "rivers", "style": "adventure"})
+        story_request = await session.call_tool(
+            "request_story", {"topic": "rivers", "style": "adventure"}
+        )
         for block in _format_content(story_request.content):
             click.echo(block)
 
-        story_text = (
-            "Once upon a time, a curious guide followed a river through the forest, helping every traveler she met."
-        )
+        story_text = "Once upon a time, a curious guide followed a river through the forest, helping every traveler she met."
         story_submit = await session.call_tool(
             "submit_story",
             {"topic": "rivers", "style": "adventure", "story": story_text},
@@ -148,10 +146,14 @@ async def _exercise_stateless(session: ClientSession, tool_names: list[str]) -> 
         for block in _format_content(story_submit.content):
             click.echo(block)
     else:
-        click.secho("  ↳ request_story/submit_story not available on runtime", fg="yellow")
+        click.secho(
+            "  ↳ request_story/submit_story not available on runtime", fg="yellow"
+        )
 
     click.secho("\nElicitation", fg="cyan", bold=True)
-    if {"request_character_profile", "submit_character_profile"}.issubset(set(tool_names)):
+    if {"request_character_profile", "submit_character_profile"}.issubset(
+        set(tool_names)
+    ):
         character = "Aria"
         elicitation_request = await session.call_tool(
             "request_character_profile", {"character": character}
@@ -170,7 +172,10 @@ async def _exercise_stateless(session: ClientSession, tool_names: list[str]) -> 
         for block in _format_content(elicitation_submit.content):
             click.echo(block)
     else:
-        click.secho("  ↳ request_character_profile/submit_character_profile not available", fg="yellow")
+        click.secho(
+            "  ↳ request_character_profile/submit_character_profile not available",
+            fg="yellow",
+        )
 
 
 async def _exercise_stateful(session: ClientSession, tool_names: list[str]) -> None:
@@ -199,15 +204,21 @@ async def _exercise_stateful(session: ClientSession, tool_names: list[str]) -> N
         for block in _format_content(story.content):
             click.echo(block)
     else:
-        click.secho("  ↳ generate_story_with_sampling not available on runtime", fg="yellow")
+        click.secho(
+            "  ↳ generate_story_with_sampling not available on runtime", fg="yellow"
+        )
 
     click.secho("\nElicitation", fg="cyan", bold=True)
     if "create_character_profile" in tool_names:
-        profile = await session.call_tool("create_character_profile", {"character": "Aria"})
+        profile = await session.call_tool(
+            "create_character_profile", {"character": "Aria"}
+        )
         for block in _format_content(profile.content):
             click.echo(block)
     else:
-        click.secho("  ↳ create_character_profile not available on runtime", fg="yellow")
+        click.secho(
+            "  ↳ create_character_profile not available on runtime", fg="yellow"
+        )
 
 
 async def _run_smoketest(cmd: Sequence[str], env: dict[str, str], mode: str) -> None:

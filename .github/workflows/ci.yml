@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+      - name: Install project with extras
+        run: uv pip install --system -e ".[dev,server]"
+      - name: Ruff lint
+        run: uvx ruff check .
+      - name: Ruff format (check)
+        run: uvx ruff format --check
+      - name: Run pytest
+        run: pytest tests/
+
+  publish:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+      - name: Install project
+        if: env.PYPI_API_TOKEN != ''
+        run: uv pip install --system -e .
+      - name: Build distributions
+        if: env.PYPI_API_TOKEN != ''
+        run: uv build
+      - name: Extract project version
+        id: get_version
+        env:
+          PYTHONPATH: src
+        run: |
+          VERSION=$(python -c "from mcp_agentcore_proxy.version import VERSION; print(VERSION)")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Ensure git tag does not already exist
+        if: env.PYPI_API_TOKEN != ''
+        run: |
+          git fetch --tags
+          if git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "Tag v${{ steps.get_version.outputs.version }} already exists" >&2
+            exit 1
+          fi
+      - name: Publish to PyPI
+        if: env.PYPI_API_TOKEN != ''
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Create and push git tag
+        if: env.PYPI_API_TOKEN != ''
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"

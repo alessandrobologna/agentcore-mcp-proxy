@@ -28,7 +28,7 @@ STATEFUL_ECR_IMAGE := $(REGISTRY)/$(ECR_REPO_NAME):stateful-$(TAG)
 STATELESS_DIGEST_TAG_PREFIX := stateless-sha256-
 STATEFUL_DIGEST_TAG_PREFIX := stateful-sha256-
 
-.PHONY: help all build build-stateless build-stateful push deploy ecr-login ensure-repo outputs clean smoke-test smoke-test-stateless smoke-test-stateful
+.PHONY: help all build build-stateless build-stateful push deploy ecr-login ensure-repo outputs clean smoke-test smoke-test-stateless smoke-test-stateful test lint format quality
 
 .DEFAULT_GOAL := help
 
@@ -43,10 +43,10 @@ all: deploy ## Build, push, and deploy everything
 build: build-stateless build-stateful ## Build both Docker images locally
 
 build-stateless:
-	docker buildx build --platform $(PLATFORM) -t $(STATELESS_LOCAL_IMAGE) --load -f runtime_stateless/Dockerfile .
+	@docker buildx build --platform $(PLATFORM) -t $(STATELESS_LOCAL_IMAGE) --load -f runtime_stateless/Dockerfile .
 
 build-stateful:
-	docker buildx build --platform $(PLATFORM) -t $(STATEFUL_LOCAL_IMAGE) --load -f runtime_stateful/Dockerfile .
+	@docker buildx build --platform $(PLATFORM) -t $(STATEFUL_LOCAL_IMAGE) --load -f runtime_stateful/Dockerfile .
 
 ensure-repo:
 	@if ! aws ecr describe-repositories --repository-names $(ECR_REPO_NAME) --region $(REGION) >/dev/null 2>&1; then \
@@ -59,16 +59,16 @@ ecr-login:
 
 push: build ensure-repo ecr-login ## Build and push Docker images to ECR
 	# Stateless image
-	docker tag $(STATELESS_LOCAL_IMAGE) $(STATELESS_ECR_IMAGE)
-	docker push $(STATELESS_ECR_IMAGE)
+	@docker tag $(STATELESS_LOCAL_IMAGE) $(STATELESS_ECR_IMAGE)
+	@docker push $(STATELESS_ECR_IMAGE)
 	@STATELESS_DIGEST=$$(docker image inspect --format='{{.Id}}' $(STATELESS_LOCAL_IMAGE) | sed 's|^sha256:||'); \
 	STATELESS_DIGEST_URI=$(REGISTRY)/$(ECR_REPO_NAME):$(STATELESS_DIGEST_TAG_PREFIX)$${STATELESS_DIGEST}; \
 	docker tag $(STATELESS_LOCAL_IMAGE) $$STATELESS_DIGEST_URI; \
 	docker push $$STATELESS_DIGEST_URI; \
 	echo "Published $$STATELESS_DIGEST_URI"; \
 	# Stateful image
-	docker tag $(STATEFUL_LOCAL_IMAGE) $(STATEFUL_ECR_IMAGE)
-	docker push $(STATEFUL_ECR_IMAGE)
+	@docker tag $(STATEFUL_LOCAL_IMAGE) $(STATEFUL_ECR_IMAGE)
+	@docker push $(STATEFUL_ECR_IMAGE)
 	@STATEFUL_DIGEST=$$(docker image inspect --format='{{.Id}}' $(STATEFUL_LOCAL_IMAGE) | sed 's|^sha256:||'); \
 	STATEFUL_DIGEST_URI=$(REGISTRY)/$(ECR_REPO_NAME):$(STATEFUL_DIGEST_TAG_PREFIX)$${STATEFUL_DIGEST}; \
 	docker tag $(STATEFUL_LOCAL_IMAGE) $$STATEFUL_DIGEST_URI; \
@@ -88,13 +88,14 @@ deploy: push ## Build, push, and deploy to AWS (SAM stack)
 		--template-file $(TEMPLATE) \
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides \
+			LogLevel=DEBUG \
 			StatelessContainerImageURI=$${STATELESS_IMAGE_URI} \
 			StatefulContainerImageURI=$${STATEFUL_IMAGE_URI} \
 			StatelessAgentRuntimeName=$(STATELESS_AGENT_RUNTIME_NAME) \
 			StatefulAgentRuntimeName=$(STATEFUL_AGENT_RUNTIME_NAME)
 
 outputs: ## Show CloudFormation stack outputs
-	aws cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs'
+	@aws cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs'
 
 smoke-test: smoke-test-stateless smoke-test-stateful ## Run both stateless and stateful smoketests
 
@@ -116,6 +117,22 @@ smoke-test-stateful: ## Run smoketest against deployed stateful runtime
 		AGENTCORE_AGENT_ARN=$(AGENTCORE_AGENT_ARN) RUNTIME_SESSION_MODE=session uv run scripts/proxy_smoketest.py "$(AGENTCORE_AGENT_ARN)" --mode stateful --proxy-cmd uv run src/mcp_agentcore_proxy/client.py; \
 	fi
 
+PYTHON_TEST_VERSION ?= 3.13
+
+test: ## Run tests
+	uvx ruff check .
+	uvx ruff format --check
+	uvx --python $(PYTHON_TEST_VERSION) --with .[dev] --with .[server] pytest tests/
+
+lint: ## Run ruff lint checks
+	uvx ruff check .
+
+format: ## Format code with ruff
+	uvx ruff format
+
+quality: lint ## Run quality checks (lint + formatting validation)
+	uvx ruff format --check
+	
 clean: ## Remove local Docker images
 	-docker rmi $(STATELESS_LOCAL_IMAGE) >/dev/null 2>&1 || true
 	-docker rmi $(STATEFUL_LOCAL_IMAGE) >/dev/null 2>&1 || true
