@@ -315,6 +315,7 @@ These commands incur AWS usage. Example output is illustrative. Actual costs dep
 - Keep CLI output flushed to STDOUT to avoid blocking MCP clients
 - Add logic-heavy tests under `tests/` or `runtime_stateless/tests/` and run them with `uv run pytest`
 - Use `uvx --from . mcp-agentcore-proxy` during local iteration for fast reloads
+- `src/mcp_agentcore_proxy/version.py` is auto-generated during builds via Hatchling; it should remain untracked
 
 ### Running Tests and QA Checks
 Install dev dependencies:
@@ -322,27 +323,65 @@ Install dev dependencies:
 uv pip install -e ".[dev,server]"
 ```
 
+If you're using a fresh virtual environment:
+```bash
+uv venv
+source .venv/bin/activate  # or .\.venv\Scripts\activate on Windows
+uv pip install -e ".[dev,server]"
+```
+
 Run unit tests:
 ```bash
+make test
+# or run pytest directly
 uv run pytest tests/ -v
 ```
 
 Run linting and formatting checks:
 ```bash
-uv run ruff check src/ tests/
-uv run ruff format --check src/ tests/
+uvx ruff check .
+uvx ruff format --check
 ```
 
 Apply automatic formatting:
 ```bash
-uv run ruff format src/ tests/
+uvx ruff format
 ```
+
+Convenience make targets:
+- `make lint` — Ruff linting
+- `make format` — Apply Ruff formatting
+- `make quality` — Lint + formatting check
+
+## Continuous Integration & Publishing
+
+- GitHub Actions workflow `.github/workflows/ci.yml` runs Ruff and pytest for every pull request targeting `main`.
+- On pushes to `main`, the same workflow builds distributions, publishes the package to PyPI, and tags the commit as `v<project.version>` from `pyproject.toml` (skipped if `PYPI_API_TOKEN` is not configured).
+- Add a repository secret named `PYPI_API_TOKEN` containing a scoped PyPI API token with project publish permissions.
+- Release checklist: bump `project.version` in `pyproject.toml`, update changelog/notes if needed, merge to `main`, and verify the workflow finishes successfully.
+
+### Client-Side Handshake Replay (Resilience)
+
+When a stateful container is redeployed (or the child MCP subprocess restarts), the very first message the bridge sees may be a `tools/call` without a preceding MCP `initialize` handshake. Per MCP, the server rejects such requests with `-32602 Invalid request parameters` and logs "Received request before initialization was complete".
+
+To make this transparent to editors, the local CLI proxy now detects this scenario and automatically replays the handshake:
+- Caches the last `initialize` payload from the client
+- On a `-32602` error for a non-`initialize` request, re-sends `initialize` and a `notifications/initialized` notification
+- Retries the original request
+
+This keeps sessions working across infrequent container restarts without switching to fully stateless mode.
+
+Operational notes:
+- The proxy emits an MCP log notification (`notifications/message`) describing the replay, so IDEs can surface a human-friendly message.
+- STDERR debug lines are also produced when `LOG_LEVEL=DEBUG` or `MCP_PROXY_DEBUG=1` is set. These do not affect STDOUT JSON-RPC.
+- If you prefer to avoid this behavior, restart the MCP connection in your client after redeploys so it naturally performs a fresh handshake before any tool calls.
 
 ## Troubleshooting
 - `Set AGENTCORE_AGENT_ARN (or AGENT_ARN)` indicates the environment variable is missing
 - `Unable to call sts:GetCallerIdentity` points to missing IAM credentials or wrong region
 - `InvokeAgentRuntime error` payloads mirror the AWS API response; inspect the JSON for permission or runtime issues
 - Empty responses usually mean the remote AgentCore runtime closed the stream without data; confirm the deployed server accepts MCP requests
+ - `-32602 Invalid request parameters` on `tools/call` after a redeploy means the child server has not been initialized yet. The CLI proxy will auto-replay `initialize` and `notifications/initialized` once and retry; otherwise, restart your MCP session.
  - Assume role errors: verify `AGENTCORE_ASSUME_ROLE_ARN` is correct, your caller has `sts:AssumeRole`, the role trust policy includes your account, and the role allows `bedrock-agentcore:InvokeAgentRuntime` on the target runtime.
 
 ## Security Considerations
