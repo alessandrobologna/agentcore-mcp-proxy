@@ -1,5 +1,10 @@
 # Amazon Bedrock AgentCore MCP Proxy
 
+[![PyPI version](https://img.shields.io/pypi/v/mcp-agentcore-proxy.svg?style=for-the-badge)](https://pypi.org/project/mcp-agentcore-proxy/)
+[![Python versions](https://img.shields.io/pypi/pyversions/mcp-agentcore-proxy.svg?style=for-the-badge)](https://pypi.org/project/mcp-agentcore-proxy/)
+[![CI](https://img.shields.io/github/actions/workflow/status/alessandrobologna/agentcore-mcp-proxy/ci.yml?branch=main&style=for-the-badge)](https://github.com/alessandrobologna/agentcore-mcp-proxy/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
 ## Overview
 
 This repository addresses two limitations in Amazon Bedrock AgentCore when running MCP servers:
