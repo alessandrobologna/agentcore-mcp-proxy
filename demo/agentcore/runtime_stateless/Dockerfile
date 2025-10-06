@@ -2,7 +2,7 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 
 WORKDIR /app
 
-COPY demo/runtime_stateless/requirements.txt ./requirements.txt
+COPY demo/agentcore/runtime_stateless/requirements.txt ./requirements.txt
 
 # Create an isolated environment for dependencies so we can copy it into the
 # slim runtime image without bringing along build tooling.
@@ -20,7 +20,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
-COPY demo/runtime_stateless/mcp_server.py demo/runtime_stateless/utils.py ./
+COPY demo/agentcore/runtime_stateless/mcp_server.py demo/agentcore/runtime_stateless/utils.py ./
 
 EXPOSE 8000
 CMD ["python","-m", "mcp_server"]
