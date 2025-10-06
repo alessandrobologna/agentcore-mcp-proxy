@@ -12,13 +12,13 @@ ifeq ($(strip $(REGION)),)
 REGION := $(AWS_DEFAULT_REGION)
 endif
 ifeq ($(strip $(REGION)),)
-REGION := $(shell aws configure get region 2>/dev/null)
+REGION := $(shell aws --no-cli-pager configure get region 2>/dev/null)
 endif
 ifeq ($(strip $(REGION)),)
 $(error REGION is not set. Pass REGION=..., set AWS_REGION/AWS_DEFAULT_REGION, or configure an AWS CLI default region.)
 endif
 
-ACCOUNT_ID := $(shell aws sts get-caller-identity --query Account --output text)
+ACCOUNT_ID := $(shell aws --no-cli-pager sts get-caller-identity --query Account --output text)
 REGISTRY := $(ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
 STATELESS_LOCAL_IMAGE := $(PROJECT)-stateless-local:$(TAG)
 STATEFUL_LOCAL_IMAGE := $(PROJECT)-stateful-local:$(TAG)
@@ -49,13 +49,13 @@ build-stateful:
 	@docker buildx build --platform $(PLATFORM) -t $(STATEFUL_LOCAL_IMAGE) --load -f agentcore/runtime_stateful/Dockerfile ..
 
 ensure-repo:
-	@if ! aws ecr describe-repositories --repository-names $(ECR_REPO_NAME) --region $(REGION) >/dev/null 2>&1; then \
+	@if ! aws --no-cli-pager ecr describe-repositories --repository-names $(ECR_REPO_NAME) --region $(REGION) >/dev/null 2>&1; then \
 		echo "Creating ECR repository $(ECR_REPO_NAME) in $(REGION)"; \
-		aws ecr create-repository --repository-name $(ECR_REPO_NAME) --region $(REGION); \
+		aws --no-cli-pager ecr create-repository --repository-name $(ECR_REPO_NAME) --region $(REGION); \
 	fi
 
 ecr-login:
-	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(REGISTRY)
+	aws --no-cli-pager ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(REGISTRY)
 
 push: build ensure-repo ecr-login ## Build and push Docker images to ECR
 	# Stateless image
@@ -95,14 +95,14 @@ deploy: push ## Build, push, and deploy to AWS (SAM stack)
 			StatefulAgentRuntimeName=$(STATEFUL_AGENT_RUNTIME_NAME)
 
 outputs: ## Show CloudFormation stack outputs
-	@aws cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs'
+	@aws --no-cli-pager cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs'
 
 smoke-test: smoke-test-stateless smoke-test-stateful ## Run both stateless and stateful smoketests
 
 smoke-test-stateless: ## Run smoketest against deployed stateless runtime
 	@if [ -z "$(AGENTCORE_AGENT_ARN)" ]; then \
 		echo "Getting stateless Agent ARN from stack outputs..."; \
-		AGENTCORE_AGENT_ARN=$$(aws cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs[?OutputKey==`StatelessAgentRuntimeArn`].OutputValue' --output text); \
+		AGENTCORE_AGENT_ARN=$$(aws --no-cli-pager cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs[?OutputKey==`StatelessAgentRuntimeArn`].OutputValue' --output text); \
 		AGENTCORE_AGENT_ARN=$$AGENTCORE_AGENT_ARN uv run scripts/proxy_smoketest.py "$$AGENTCORE_AGENT_ARN" --proxy-cmd uv run ../src/mcp_agentcore_proxy/client.py; \
 	else \
 		AGENTCORE_AGENT_ARN=$(AGENTCORE_AGENT_ARN) uv run scripts/proxy_smoketest.py "$(AGENTCORE_AGENT_ARN)" --proxy-cmd uv run ../src/mcp_agentcore_proxy/client.py; \
@@ -111,7 +111,7 @@ smoke-test-stateless: ## Run smoketest against deployed stateless runtime
 smoke-test-stateful: ## Run smoketest against deployed stateful runtime
 	@if [ -z "$(AGENTCORE_AGENT_ARN)" ]; then \
 		echo "Getting stateful Agent ARN from stack outputs..."; \
-		AGENTCORE_AGENT_ARN=$$(aws cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs[?OutputKey==`StatefulAgentRuntimeArn`].OutputValue' --output text); \
+		AGENTCORE_AGENT_ARN=$$(aws --no-cli-pager cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs[?OutputKey==`StatefulAgentRuntimeArn`].OutputValue' --output text); \
 		AGENTCORE_AGENT_ARN=$$AGENTCORE_AGENT_ARN RUNTIME_SESSION_MODE=session uv run scripts/proxy_smoketest.py "$$AGENTCORE_AGENT_ARN" --mode stateful --proxy-cmd uv run ../src/mcp_agentcore_proxy/client.py; \
 	else \
 		AGENTCORE_AGENT_ARN=$(AGENTCORE_AGENT_ARN) RUNTIME_SESSION_MODE=session uv run scripts/proxy_smoketest.py "$(AGENTCORE_AGENT_ARN)" --mode stateful --proxy-cmd uv run ../src/mcp_agentcore_proxy/client.py; \

@@ -19,7 +19,7 @@ fast = FastAgent("Sampling Demo", quiet=False)
 @fast.agent(
     "sampling_demo",
     instruction="""
-    You are an agent using the stateful-dev mcp server. Write a short poem about a given topic.
+    You are an agent using the mcp-agentcore-proxy mcp server. Write a short poem about a given topic.
     """,
     servers=["mcp-agentcore-proxy"],
 )
