@@ -2,7 +2,7 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 
 WORKDIR /app
 
-COPY runtime_stateful/requirements.txt ./requirements.txt
+COPY demo/runtime_stateful/requirements.txt ./requirements.txt
 
 # Create an isolated environment for dependencies so we can copy it into the
 # slim runtime image without bringing along build tooling.
@@ -23,7 +23,7 @@ WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
 COPY src/mcp_agentcore_proxy ./mcp_agentcore_proxy
-COPY runtime_stateful/mcp_server.py ./mcp_server.py
+COPY demo/runtime_stateful/mcp_server.py ./mcp_server.py
 
 # set the command to run the MCP server
 ENV MCP_SERVER_CMD="python -u mcp_server.py"

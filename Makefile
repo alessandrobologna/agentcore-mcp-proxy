@@ -4,7 +4,7 @@ TAG ?= latest
 STACK_NAME ?= agentcore-proxy-demo-servers
 STATELESS_AGENT_RUNTIME_NAME ?= agentcore_proxy_stateless
 STATEFUL_AGENT_RUNTIME_NAME ?= agentcore_proxy_stateful
-TEMPLATE ?= template.yaml
+TEMPLATE ?= demo/template.yaml
 PLATFORM ?= linux/arm64
 
 REGION ?= $(AWS_REGION)
@@ -43,10 +43,10 @@ all: deploy ## Build, push, and deploy everything
 build: build-stateless build-stateful ## Build both Docker images locally
 
 build-stateless:
-	@docker buildx build --platform $(PLATFORM) -t $(STATELESS_LOCAL_IMAGE) --load -f runtime_stateless/Dockerfile .
+	@docker buildx build --platform $(PLATFORM) -t $(STATELESS_LOCAL_IMAGE) --load -f demo/runtime_stateless/Dockerfile .
 
 build-stateful:
-	@docker buildx build --platform $(PLATFORM) -t $(STATEFUL_LOCAL_IMAGE) --load -f runtime_stateful/Dockerfile .
+	@docker buildx build --platform $(PLATFORM) -t $(STATEFUL_LOCAL_IMAGE) --load -f demo/runtime_stateful/Dockerfile .
 
 ensure-repo:
 	@if ! aws ecr describe-repositories --repository-names $(ECR_REPO_NAME) --region $(REGION) >/dev/null 2>&1; then \
@@ -103,18 +103,18 @@ smoke-test-stateless: ## Run smoketest against deployed stateless runtime
 	@if [ -z "$(AGENTCORE_AGENT_ARN)" ]; then \
 		echo "Getting stateless Agent ARN from stack outputs..."; \
 		AGENTCORE_AGENT_ARN=$$(aws cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs[?OutputKey==`StatelessAgentRuntimeArn`].OutputValue' --output text); \
-		AGENTCORE_AGENT_ARN=$$AGENTCORE_AGENT_ARN uv run scripts/proxy_smoketest.py "$$AGENTCORE_AGENT_ARN" --proxy-cmd uv run src/mcp_agentcore_proxy/client.py; \
+		AGENTCORE_AGENT_ARN=$$AGENTCORE_AGENT_ARN uv run demo/scripts/proxy_smoketest.py "$$AGENTCORE_AGENT_ARN" --proxy-cmd uv run src/mcp_agentcore_proxy/client.py; \
 	else \
-		AGENTCORE_AGENT_ARN=$(AGENTCORE_AGENT_ARN) uv run scripts/proxy_smoketest.py "$(AGENTCORE_AGENT_ARN)" --proxy-cmd uv run src/mcp_agentcore_proxy/client.py; \
+		AGENTCORE_AGENT_ARN=$(AGENTCORE_AGENT_ARN) uv run demo/scripts/proxy_smoketest.py "$(AGENTCORE_AGENT_ARN)" --proxy-cmd uv run src/mcp_agentcore_proxy/client.py; \
 	fi
 
 smoke-test-stateful: ## Run smoketest against deployed stateful runtime
 	@if [ -z "$(AGENTCORE_AGENT_ARN)" ]; then \
 		echo "Getting stateful Agent ARN from stack outputs..."; \
 		AGENTCORE_AGENT_ARN=$$(aws cloudformation describe-stacks --stack-name $(STACK_NAME) --region $(REGION) --query 'Stacks[0].Outputs[?OutputKey==`StatefulAgentRuntimeArn`].OutputValue' --output text); \
-		AGENTCORE_AGENT_ARN=$$AGENTCORE_AGENT_ARN RUNTIME_SESSION_MODE=session uv run scripts/proxy_smoketest.py "$$AGENTCORE_AGENT_ARN" --mode stateful --proxy-cmd uv run src/mcp_agentcore_proxy/client.py; \
+		AGENTCORE_AGENT_ARN=$$AGENTCORE_AGENT_ARN RUNTIME_SESSION_MODE=session uv run demo/scripts/proxy_smoketest.py "$$AGENTCORE_AGENT_ARN" --mode stateful --proxy-cmd uv run src/mcp_agentcore_proxy/client.py; \
 	else \
-		AGENTCORE_AGENT_ARN=$(AGENTCORE_AGENT_ARN) RUNTIME_SESSION_MODE=session uv run scripts/proxy_smoketest.py "$(AGENTCORE_AGENT_ARN)" --mode stateful --proxy-cmd uv run src/mcp_agentcore_proxy/client.py; \
+		AGENTCORE_AGENT_ARN=$(AGENTCORE_AGENT_ARN) RUNTIME_SESSION_MODE=session uv run demo/scripts/proxy_smoketest.py "$(AGENTCORE_AGENT_ARN)" --mode stateful --proxy-cmd uv run src/mcp_agentcore_proxy/client.py; \
 	fi
 
 PYTHON_TEST_VERSION ?= 3.13

@@ -97,10 +97,12 @@ Choose the deployment model based on whether tools require bidirectional MCP fea
 
 ## Repository Layout
 - `src/mcp_agentcore_proxy/` MCP STDIO proxy packaged as `mcp-agentcore-proxy`
-- `runtime_stateless/` FastMCP application packaged into a container for AgentCore (original demo)
-- `runtime_stateful/` HTTP↔STDIO bridge container that spawns a stateful MCP server inside the runtime
-- `scripts/` helper scripts including an end-to-end smoketest
-- `Makefile`, `template.yaml`, and `samconfig.toml` for building and deploying the demo stack
+- `demo/` Demo deployment infrastructure and runtimes
+  - `demo/runtime_stateless/` FastMCP application packaged into a container for AgentCore
+  - `demo/runtime_stateful/` HTTP↔STDIO bridge container that spawns a stateful MCP server inside the runtime
+  - `demo/scripts/` helper scripts including an end-to-end smoketest
+  - `demo/template.yaml` and `demo/samconfig.toml` SAM template and config for deploying the demo stack
+- `Makefile` build and deployment automation
 
 ## Prerequisites
 - Python 3.10 or newer plus [uv](https://github.com/astral-sh/uv) for dependency management
@@ -119,14 +121,28 @@ export AWS_REGION="us-east-1"
 ```
 
 ## Running the Proxy with an MCP Client
-Invoke the CLI directly with uvx or any orchestrator that speaks MCP STDIO.
+
+The proxy can be invoked directly with `uvx` or any orchestrator that speaks MCP STDIO.
+
+**From PyPI (recommended for production use):**
 ```bash
-uvx --from . mcp-agentcore-proxy
+# Latest version
+uvx mcp-agentcore-proxy
+
+# Pinned version
+uvx mcp-agentcore-proxy@0.1.0
 ```
-When launching directly from Git without cloning, target the repository root.
+
+**From GitHub (for latest unreleased changes):**
 ```bash
 uvx --from git+https://github.com/alessandrobologna/agentcore-mcp-proxy mcp-agentcore-proxy
 ```
+
+**From local clone (for development):**
+```bash
+uvx --from . mcp-agentcore-proxy
+```
+
 The proxy validates IAM credentials with `sts:GetCallerIdentity`, derives an AgentCore `runtimeSessionId`, and relays MCP messages to the remote runtime. Standard output carries the JSON-RPC responses. Errors surface as structured MCP error payloads.
 
 Control how session identifiers are generated with `RUNTIME_SESSION_MODE` (default: `session`):
@@ -136,6 +152,50 @@ Control how session identifiers are generated with `RUNTIME_SESSION_MODE` (defau
 
 ### VS Code MCP Client Example
 Configure VS Code MCP to launch the proxy with `uvx` and a pre-set runtime ARN. Replace the ARN value with the runtime you deploy.
+
+**Option 1: Install from PyPI (recommended)**
+
+Install the latest published version:
+```json
+{
+  "servers": {
+    "mcp-proxy": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-agentcore-proxy"
+      ],
+      "env": {
+        "AGENTCORE_AGENT_ARN": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/example"
+      }
+    }
+  },
+  "inputs": []
+}
+```
+
+To pin to a specific version:
+```json
+{
+  "servers": {
+    "mcp-proxy": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-agentcore-proxy@0.1.0"
+      ],
+      "env": {
+        "AGENTCORE_AGENT_ARN": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/example"
+      }
+    }
+  },
+  "inputs": []
+}
+```
+
+**Option 2: Install from GitHub (development/latest)**
+
+For the latest unreleased changes:
 ```json
 {
   "servers": {
@@ -178,14 +238,14 @@ Using the generated role:
 ```bash
 make deploy
 export AGENTCORE_ASSUME_ROLE_ARN="$(make -s outputs | jq -r '.[] | select(.OutputKey=="ProxyInvokeRoleArn") | .OutputValue')"
-uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
+uv run demo/scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
 ```
 This command requires the `jq` CLI to filter the CloudFormation outputs.
 
 ## Smoke Test
-`scripts/proxy_smoketest.py` exercises the proxy end to end by listing tools, calling `whoami` to reveal the sandbox identifier, fetching `get_weather`, and walking through the story + elicitation flows.
+`demo/scripts/proxy_smoketest.py` exercises the proxy end to end by listing tools, calling `whoami` to reveal the sandbox identifier, fetching `get_weather`, and walking through the story + elicitation flows.
 ```bash
-uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
+uv run demo/scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
 ```
 The script spawns `mcp-agentcore-proxy` via STDIO, initializes an MCP session, and prints any tool output. Example output is illustrative. Actual costs depend on traffic patterns and configuration.
 
@@ -240,9 +300,9 @@ The client validates responses against the Pydantic schema before returning data
 Both tools are included in the stateful runtime container for testing these flows.
 
 ## Deploying the Sample FastMCP Server
-The `runtime_stateless/` directory contains a FastAPI-based MCP server with completion-style flows (`whoami`, `get_weather`, `request_story`/`submit_story`, and `request_character_profile`/`submit_character_profile`). Deploying the container makes the runtime available through AgentCore.
+The `demo/runtime_stateless/` directory contains a FastAPI-based MCP server with completion-style flows (`whoami`, `get_weather`, `request_story`/`submit_story`, and `request_character_profile`/`submit_character_profile`). Deploying the container makes the runtime available through AgentCore.
 
-The `runtime_stateful/` directory demonstrates the new HTTP↔STDIO bridge. It runs the bridge entry point (`mcp-agentcore-server`) and spawns a local MCP process inside the container so the sandbox can hold conversational state across multiple `InvokeAgentRuntime` calls.
+The `demo/runtime_stateful/` directory demonstrates the new HTTP↔STDIO bridge. It runs the bridge entry point (`mcp-agentcore-server`) and spawns a local MCP process inside the container so the sandbox can hold conversational state across multiple `InvokeAgentRuntime` calls.
 
 ### Stateful Bridge Runtime
 
@@ -256,17 +316,17 @@ ENV MCP_SERVER_CMD="python -u your_mcp_server.py"
 CMD ["mcp-agentcore-server"]
 ```
 
-The demo container in `runtime_stateful/` builds from the repository root to include the development version:
+The demo container in `demo/runtime_stateful/` builds from the repository root to include the development version:
 
 ```bash
-docker build -f runtime_stateful/Dockerfile -t agentcore-stateful .
+docker build -f demo/runtime_stateful/Dockerfile -t agentcore-stateful .
 ```
 
 The bridge expects `MCP_SERVER_CMD` to point to an executable that speaks MCP over stdio. The `-u` flag forces unbuffered output to prevent communication hangs.
 
 Enable session affinity in the local proxy with `RUNTIME_SESSION_MODE=session`. The bridge keeps a single child process alive for the lifetime of the runtime microVM.
 
-After deployment, the CloudFormation stack emits both `StatelessAgentRuntimeArn` and `StatefulAgentRuntimeArn` outputs. To verify the bridge, run `uv run scripts/proxy_smoketest.py "$STATEFUL_ARN" --mode stateful`.
+After deployment, the CloudFormation stack emits both `StatelessAgentRuntimeArn` and `StatefulAgentRuntimeArn` outputs. To verify the bridge, run `uv run demo/scripts/proxy_smoketest.py "$STATEFUL_ARN" --mode stateful`.
 
 The demo tools include `whoami`, `get_weather`, `generate_story_with_sampling`, and `create_character_profile` (uses elicitation) for exploring sampling and follow-up prompts within a persistent session.
 
@@ -311,9 +371,9 @@ Environment prerequisites:
 These commands incur AWS usage. Example output is illustrative. Actual costs depend on traffic patterns and configuration.
 
 ## Development Notes
-- Update `pyproject.toml` or `runtime_stateless/requirements.txt` when adding dependencies, then run `uv lock`
+- Update `pyproject.toml` or `demo/runtime_stateless/requirements.txt` when adding dependencies, then run `uv lock`
 - Keep CLI output flushed to STDOUT to avoid blocking MCP clients
-- Add logic-heavy tests under `tests/` or `runtime_stateless/tests/` and run them with `uv run pytest`
+- Add logic-heavy tests under `tests/` or `demo/runtime_stateless/tests/` and run them with `uv run pytest`
 - Use `uvx --from . mcp-agentcore-proxy` during local iteration for fast reloads
 - `src/mcp_agentcore_proxy/version.py` is auto-generated during builds via Hatchling; it should remain untracked
 
