@@ -4,5 +4,6 @@ __pycache__/
 .claude/
 .venv/
 dist/
-agent-demo/
 src/mcp_agentcore_proxy/version.py
+# work folder
+agent-demo/

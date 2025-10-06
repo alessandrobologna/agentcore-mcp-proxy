@@ -101,33 +101,45 @@ The bridge maintains the subprocess for the lifetime of the AgentCore microVM. S
 Choose the deployment model based on whether tools require bidirectional MCP features or session state.
 
 ## Repository Layout
-- `src/mcp_agentcore_proxy/` MCP STDIO proxy packaged as `mcp-agentcore-proxy`
-- `demo/` Demo deployment infrastructure and runtimes
-  - `demo/runtime_stateless/` FastMCP application packaged into a container for AgentCore
-  - `demo/runtime_stateful/` HTTP↔STDIO bridge container that spawns a stateful MCP server inside the runtime
-  - `demo/scripts/` helper scripts including an end-to-end smoketest
-  - `demo/template.yaml` and `demo/samconfig.toml` SAM template and config for deploying the demo stack
-- `Makefile` build and deployment automation
+- `src/mcp_agentcore_proxy/` - MCP STDIO proxy (published as `mcp-agentcore-proxy` on PyPI)
+- `demo/` - Demo implementations and testing utilities ([see demo README](demo/README.md))
+  - `agentcore/` - Sample AgentCore runtime deployments (stateless and stateful)
+  - `scripts/` - Smoke test utilities
+  - `fast-agent/` - FastAgent AI agent demo
+- `tests/` - Unit tests for the proxy
 
 ## Prerequisites
-- Python 3.10 or newer plus [uv](https://github.com/astral-sh/uv) for dependency management
+- Python 3.11 or newer with [uv](https://github.com/astral-sh/uv)
 - AWS credentials with permission to call `sts:GetCallerIdentity` and `bedrock-agentcore:InvokeAgentRuntime`
-- Docker and the AWS SAM CLI if deploying the sample server
-- An AgentCore runtime ARN to authenticate against (`AGENTCORE_AGENT_ARN`)
+- An AgentCore runtime ARN (deploy your own from `demo/` or use an existing one)
 
-## Installing the Proxy Locally
+## Installation
+
+**From PyPI (recommended):**
 ```bash
+pip install mcp-agentcore-proxy
+```
+
+**From source (for development):**
+```bash
+git clone https://github.com/alessandrobologna/agentcore-mcp-proxy
+cd agentcore-mcp-proxy
 uv pip install -e .
 ```
-Set the runtime ARN and region before launching the proxy.
+
+## Configuration
+
+Set the runtime ARN and region:
 ```bash
-export AGENTCORE_AGENT_ARN="arn:aws:bedrock:us-east-1:123456789012:agent-runtime/example"
+export AGENTCORE_AGENT_ARN="arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/example"
 export AWS_REGION="us-east-1"
 ```
 
+> **Need a runtime?** Deploy the sample runtimes from the [`demo/` directory](demo/README.md).
+
 ## Running the Proxy with an MCP Client
 
-The proxy can be invoked directly with `uvx` or any orchestrator that speaks MCP STDIO.
+The proxy can be invoked directly with `uvx`.
 
 **From PyPI (recommended for production use):**
 ```bash
@@ -150,6 +162,7 @@ uvx --from . mcp-agentcore-proxy
 
 The proxy validates IAM credentials with `sts:GetCallerIdentity`, derives an AgentCore `runtimeSessionId`, and relays MCP messages to the remote runtime. Standard output carries the JSON-RPC responses. Errors surface as structured MCP error payloads.
 
+### Session modes
 Control how session identifiers are generated with `RUNTIME_SESSION_MODE` (default: `session`):
 - `session` creates a random session ID once when the proxy starts (recommended for stateful runtimes).
 - `identity` hashes the caller identity returned by `sts:GetCallerIdentity` so multiple proxy invocations under the same IAM principal can reuse a warm runtime.
@@ -174,8 +187,7 @@ Install the latest published version:
         "AGENTCORE_AGENT_ARN": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/example"
       }
     }
-  },
-  "inputs": []
+  }
 }
 ```
 
@@ -193,8 +205,7 @@ To pin to a specific version:
         "AGENTCORE_AGENT_ARN": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/example"
       }
     }
-  },
-  "inputs": []
+  }
 }
 ```
 
@@ -222,224 +233,83 @@ For the latest unreleased changes:
 ```
 
 ## Cross-Account Use (Assume Role)
-The proxy can assume an IAM role before invoking AgentCore to support cross-account access or tighter scoping.
 
-- Set `AGENTCORE_ASSUME_ROLE_ARN` to the role ARN to assume. When unset, current credentials are used.
-- Optionally set `AGENTCORE_ASSUME_ROLE_SESSION_NAME` to customize the STS session name. Defaults to `"mcpAgentCoreProxy"`.
+The proxy can assume an IAM role before invoking AgentCore:
 
-Example:
 ```bash
 export AGENTCORE_ASSUME_ROLE_ARN="arn:aws:iam::111122223333:role/AgentCoreProxyInvokeRole"
-uv run scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
+export AGENTCORE_ASSUME_ROLE_SESSION_NAME="mySession"  # Optional, defaults to "mcpAgentCoreProxy"
 ```
 
-When deploying the sample stack, a test role is provisioned:
-- Output `ProxyInvokeRoleArn` exposes the assumable role ARN.
-- The role trusts the deploying account's root principal and allows `bedrock-agentcore:InvokeAgentRuntime` on the deployed runtime.
-In real world scenarios, the role would use conditions and ABAC 
-to allow access from other accounts and principals.
+The assumed role must:
+- Trust the calling principal via its trust policy
+- Allow `bedrock-agentcore:InvokeAgentRuntime` on the target runtime(s)
 
-Using the generated role:
-```bash
-make deploy
-export AGENTCORE_ASSUME_ROLE_ARN="$(make -s outputs | jq -r '.[] | select(.OutputKey=="ProxyInvokeRoleArn") | .OutputValue')"
-uv run demo/scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
-```
-This command requires the `jq` CLI to filter the CloudFormation outputs.
+See the [demo README](demo/README.md#cross-account-testing) for a complete cross-account testing example.
 
-## Smoke Test
-`demo/scripts/proxy_smoketest.py` exercises the proxy end to end by listing tools, calling `whoami` to reveal the sandbox identifier, fetching `get_weather`, and walking through the story + elicitation flows.
-```bash
-uv run demo/scripts/proxy_smoketest.py "$AGENTCORE_AGENT_ARN"
-```
-The script spawns `mcp-agentcore-proxy` via STDIO, initializes an MCP session, and prints any tool output. Example output is illustrative. Actual costs depend on traffic patterns and configuration.
+## Deploying Sample Runtimes
 
-## Bidirectional MCP Examples
+This repository includes sample stateless and stateful AgentCore runtimes for testing. See the **[demo/ directory](demo/README.md)** for:
+- Deployment instructions
+- Bidirectional MCP examples (sampling/elicitation)
+- Building custom stateful runtimes
+- Smoke testing
 
-The stateful runtime demonstrates bidirectional MCP through sampling and elicitation.
+## Development
 
-### Sampling
+### Running Tests
 
-The `generate_story_with_sampling` tool requests LLM inference from the client:
-
-```python
-@mcp.tool()
-async def generate_story_with_sampling(topic: str, context: Context) -> dict:
-    result = await context.session.create_message(
-        messages=[
-            types.SamplingMessage(
-                role="user",
-                content=types.TextContent(
-                    type="text",
-                    text=f"Write a short story about {topic}."
-                )
-            )
-        ],
-        max_tokens=300,
-    )
-    return {"story": result.content.text}
-```
-
-The MCP protocol routes the sampling request back to the client. The client runs inference and returns the result to the server.
-
-### Elicitation
-
-The `create_character_profile` tool demonstrates schema-driven data collection:
-
-```python
-class CharacterProfileSchema(BaseModel):
-    traits: str
-    motivation: str
-
-@mcp.tool()
-async def create_character_profile(character: str, context: Context) -> dict:
-    result = await context.elicit(
-        f"Describe {character} in two bullet points",
-        CharacterProfileSchema
-    )
-    return {"profile": result.data.model_dump()}
-```
-
-The client validates responses against the Pydantic schema before returning data to the server.
-
-Both tools are included in the stateful runtime container for testing these flows.
-
-## Deploying the Sample FastMCP Server
-The `demo/runtime_stateless/` directory contains a FastAPI-based MCP server with completion-style flows (`whoami`, `get_weather`, `request_story`/`submit_story`, and `request_character_profile`/`submit_character_profile`). Deploying the container makes the runtime available through AgentCore.
-
-The `demo/runtime_stateful/` directory demonstrates the new HTTP↔STDIO bridge. It runs the bridge entry point (`mcp-agentcore-server`) and spawns a local MCP process inside the container so the sandbox can hold conversational state across multiple `InvokeAgentRuntime` calls.
-
-### Stateful Bridge Runtime
-
-The stateful runtime is intended for experimenting with bidirectional sampling and multi-step conversations.
-
-The bridge package (`mcp-agentcore-server`) can be installed in any container via pip:
-
-```dockerfile
-RUN pip install git+https://github.com/alessandrobologna/agentcore-mcp-proxy
-ENV MCP_SERVER_CMD="python -u your_mcp_server.py"
-CMD ["mcp-agentcore-server"]
-```
-
-The demo container in `demo/runtime_stateful/` builds from the repository root to include the development version:
-
-```bash
-docker build -f demo/runtime_stateful/Dockerfile -t agentcore-stateful .
-```
-
-The bridge expects `MCP_SERVER_CMD` to point to an executable that speaks MCP over stdio. The `-u` flag forces unbuffered output to prevent communication hangs.
-
-Enable session affinity in the local proxy with `RUNTIME_SESSION_MODE=session`. The bridge keeps a single child process alive for the lifetime of the runtime microVM.
-
-After deployment, the CloudFormation stack emits both `StatelessAgentRuntimeArn` and `StatefulAgentRuntimeArn` outputs. To verify the bridge, run `uv run demo/scripts/proxy_smoketest.py "$STATEFUL_ARN" --mode stateful`.
-
-The demo tools include `whoami`, `get_weather`, `generate_story_with_sampling`, and `create_character_profile` (uses elicitation) for exploring sampling and follow-up prompts within a persistent session.
-
-#### Bridge Environment Variables
-
-The HTTP-to-STDIO bridge (`mcp-agentcore-server`) supports these environment variables:
-
-- `MCP_SERVER_CMD` (required): Command to launch the child MCP server. Must speak MCP JSON-RPC over stdio.
-  - Example: `python -u mcp_server.py`
-  - The `-u` flag forces unbuffered output, critical to prevent the bridge from hanging while waiting for subprocess responses.
-
-- `MCP_SERVER_CWD` (optional): Working directory for the child process. Defaults to current directory.
-
-- `SERVER_HOST` (optional): Bridge HTTP listen address. Defaults to `0.0.0.0`.
-
-- `SERVER_PORT` (optional): Bridge HTTP listen port. Defaults to `8080`.
-
-- `LOG_LEVEL` (optional): Logging verbosity for both bridge and child. Options: DEBUG, INFO, WARNING, ERROR, CRITICAL. Defaults to INFO.
-
-The bridge automatically sets `PYTHONUNBUFFERED=1` and `PYTHONIOENCODING=UTF-8` in the child process environment to ensure immediate output flushing.
-```bash
-make build
-make push
-make deploy
-```
-The Makefile now builds two images (stateless FastMCP demo and stateful HTTP bridge), pushes both to ECR, and deploys them via SAM. Stack outputs include ARNs for each runtime. Run `make smoke-test` to exercise both runtimes sequentially.
-
-### Makefile Targets
-- `make build` builds both runtime images (stateless and stateful) locally using Docker Buildx (default platform `linux/arm64`).
-- `make push` ensures the ECR repository exists, logs in, and pushes both images with versioned and digest tags.
-- `make deploy` builds, pushes, and deploys the SAM stack in one step using `sam deploy`. Region derives from `AWS_REGION` or your AWS CLI configuration.
-- `make outputs` prints CloudFormation stack outputs, including both runtime ARNs once deployed.
-- `make smoke-test` runs both smoketest scenarios (stateless followed by stateful).
-- `make smoke-test-stateless` and `make smoke-test-stateful` run the individual scenarios if you only need one.
-- `make clean` removes local Docker images created by the build step.
-
-Environment prerequisites:
-- Set `AWS_REGION` or configure a default region. The Makefile stops if no region is available.
-- Ensure Docker and the AWS CLI are installed, along with SAM CLI (`sam`).
-- Authenticate with AWS so `aws sts get-caller-identity` succeeds.
-
-These commands incur AWS usage. Example output is illustrative. Actual costs depend on traffic patterns and configuration.
-
-## Development Notes
-- Update `pyproject.toml` or `demo/runtime_stateless/requirements.txt` when adding dependencies, then run `uv lock`
-- Keep CLI output flushed to STDOUT to avoid blocking MCP clients
-- Add logic-heavy tests under `tests/` or `demo/runtime_stateless/tests/` and run them with `uv run pytest`
-- Use `uvx --from . mcp-agentcore-proxy` during local iteration for fast reloads
-- `src/mcp_agentcore_proxy/version.py` is auto-generated during builds via Hatchling; it should remain untracked
-
-### Running Tests and QA Checks
 Install dev dependencies:
 ```bash
 uv pip install -e ".[dev,server]"
 ```
 
-If you're using a fresh virtual environment:
+Run tests and quality checks:
 ```bash
-uv venv
-source .venv/bin/activate  # or .\.venv\Scripts\activate on Windows
-uv pip install -e ".[dev,server]"
+make test          # Run all tests, linting, and formatting checks
+make lint          # Ruff linting only
+make format        # Apply Ruff formatting
+make quality       # Lint + formatting check
 ```
 
-Run unit tests:
+Or directly:
 ```bash
-make test
-# or run pytest directly
 uv run pytest tests/ -v
-```
-
-Run linting and formatting checks:
-```bash
 uvx ruff check .
-uvx ruff format --check
-```
-
-Apply automatic formatting:
-```bash
 uvx ruff format
 ```
 
-Convenience make targets:
-- `make lint` — Ruff linting
-- `make format` — Apply Ruff formatting
-- `make quality` — Lint + formatting check
+### Contributing
 
-## Continuous Integration & Publishing
+- Keep CLI output flushed to STDOUT to avoid blocking MCP clients
+- Add tests for new features in `tests/`
+- Use `uvx --from . mcp-agentcore-proxy` for fast iteration
+- `src/mcp_agentcore_proxy/version.py` is auto-generated—don't edit or track it
 
-- GitHub Actions workflow `.github/workflows/ci.yml` runs Ruff and pytest for every pull request targeting `main`.
-- On pushes to `main`, the same workflow builds distributions, publishes the package to PyPI, and tags the commit as `v<project.version>` from `pyproject.toml` (skipped if `PYPI_API_TOKEN` is not configured).
-- Add a repository secret named `PYPI_API_TOKEN` containing a scoped PyPI API token with project publish permissions.
-- Release checklist: bump `project.version` in `pyproject.toml`, update changelog/notes if needed, merge to `main`, and verify the workflow finishes successfully.
+### Release Process
 
-### Client-Side Handshake Replay (Resilience)
+1. Bump `version` in `pyproject.toml`
+2. Create PR and merge to `main`
+3. CI automatically:
+   - Runs tests on Python 3.11, 3.12, 3.13
+   - Publishes to PyPI (if `PYPI_API_TOKEN` secret is configured)
+   - Tags the release as `v<version>`
 
-When a stateful container is redeployed (or the child MCP subprocess restarts), the very first message the bridge sees may be a `tools/call` without a preceding MCP `initialize` handshake. Per MCP, the server rejects such requests with `-32602 Invalid request parameters` and logs "Received request before initialization was complete".
+## Advanced Features
 
-To make this transparent to editors, the local CLI proxy now detects this scenario and automatically replays the handshake:
+### Handshake Replay (Resilience)
+
+When connecting to stateful runtimes, the proxy automatically handles container restarts transparently:
+
 - Caches the last `initialize` payload from the client
-- On a `-32602` error for a non-`initialize` request, re-sends `initialize` and a `notifications/initialized` notification
+- On `-32602` errors (uninitialized server), re-sends `initialize` and `notifications/initialized`
 - Retries the original request
+- Emits MCP log notifications describing the replay
 
-This keeps sessions working across infrequent container restarts without switching to fully stateless mode.
+This keeps sessions working across infrequent container restarts without manual intervention.
 
-Operational notes:
-- The proxy emits an MCP log notification (`notifications/message`) describing the replay, so IDEs can surface a human-friendly message.
-- STDERR debug lines are also produced when `LOG_LEVEL=DEBUG` or `MCP_PROXY_DEBUG=1` is set. These do not affect STDOUT JSON-RPC.
-- If you prefer to avoid this behavior, restart the MCP connection in your client after redeploys so it naturally performs a fresh handshake before any tool calls.
+**Debug logging:**
+Set `LOG_LEVEL=DEBUG` or `MCP_PROXY_DEBUG=1` for detailed replay information on STDERR.
 
 ## Troubleshooting
 - `Set AGENTCORE_AGENT_ARN (or AGENT_ARN)` indicates the environment variable is missing

@@ -1,0 +1,2 @@
+# Local FastAgent configuration (contains sensitive ARNs)
+fastagent.config.yaml
