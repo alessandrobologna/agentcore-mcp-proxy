@@ -1,0 +1,25 @@
+{
+  "servers": {
+    "agentcore-mcp-proxy": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-agentcore-proxy"],
+      "env": {
+        "AGENTCORE_AGENT_ARN": "${input:agentArn}",
+        "AGENTCORE_ASSUME_ROLE_ARN": "${input:assumeRoleArn}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "agentArn",
+      "description": "Enter the required AGENTCORE_AGENT_ARN",
+      "secret": false
+    },
+    {
+      "id": "assumeRoleArn",
+      "description": "Optional AGENTCORE_ASSUME_ROLE_ARN (press Enter to skip)",
+      "optional": true
+    }
+  ]
+}
