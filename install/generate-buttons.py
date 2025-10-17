@@ -12,6 +12,7 @@ Generate markdown link snippets for VS Code MCP installation.
 This script reads an MCP configuration JSON file and creates a markdown link
 that can be used to install the MCP server directly in VS Code Insiders.
 """
+
 import json
 import urllib.parse
 from pathlib import Path
@@ -118,16 +119,16 @@ def generate_button(
     # Construct the installation URL
     base_url = "https://insiders.vscode.dev/redirect/mcp/install"
     install_url = f"{base_url}?name={encoded_name}"
-    
+
     # Add inputs as a separate parameter if present
     if inputs:
         inputs_json = json.dumps(inputs, separators=(",", ":"))
         encoded_inputs = urllib.parse.quote(inputs_json)
         install_url += f"&inputs={encoded_inputs}"
-    
+
     # Add config
     install_url += f"&config={encoded_config}"
-    
+
     if insiders:
         install_url += "&quality=insiders"
 
@@ -139,7 +140,7 @@ def generate_button(
         if logo:
             badge_url += f"&logo={logo}&logoColor={logo_color}"
         markdown = f"[![{name}]({badge_url})]({install_url})"
-        
+
         if not clipboard:
             click.echo("Generated Shields.io Badge:")
             click.echo()
@@ -150,17 +151,17 @@ def generate_button(
     else:
         # Generate plain text link
         markdown = f"[Install {name} in VS Code]({install_url})"
-        
+
         if not clipboard:
             click.echo("Generated Markdown Link:")
             click.echo()
             click.echo(markdown)
-    
+
     if not clipboard:
         click.echo()
         click.echo("Installation URL:")
         click.echo(install_url)
-    
+
     # Copy to clipboard if requested
     if clipboard:
         try:
