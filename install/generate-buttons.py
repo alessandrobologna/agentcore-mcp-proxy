@@ -106,8 +106,9 @@ def generate_button(
         click.echo(f"Error reading {config_path}: {e}", err=True)
         raise click.Abort()
 
-    # URL-encode the name
-    encoded_name = urllib.parse.quote(name)
+    # Extract the config name (this is what VS Code will use as the server identifier)
+    config_name = config_data.get("name", "mcp-server")
+    encoded_config_name = urllib.parse.quote(config_name)
 
     # Extract inputs if present and remove from config
     inputs = config_data.pop("inputs", None)
@@ -116,9 +117,9 @@ def generate_button(
     config_json = json.dumps(config_data, separators=(",", ":"))
     encoded_config = urllib.parse.quote(config_json)
 
-    # Construct the installation URL
+    # Construct the installation URL - use the config's name field, not the display name
     base_url = "https://insiders.vscode.dev/redirect/mcp/install"
-    install_url = f"{base_url}?name={encoded_name}"
+    install_url = f"{base_url}?name={encoded_config_name}"
 
     # Add inputs as a separate parameter if present
     if inputs:
