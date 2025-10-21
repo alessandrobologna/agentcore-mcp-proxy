@@ -7,3 +7,4 @@ dist/
 src/mcp_agentcore_proxy/version.py
 # work folder
 agent-demo/
+.DS_Store

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2025-10-21
+
+### Fixed
+- Installation badge generator now correctly uses config's `name` field for MCP server identifier
+- Corrected VS Code install URLs to use `agentcoreMcpProxy` as server name
+
+### Changed
+- Reorganized README structure: moved Overview before Quick Start for better context
+- Enhanced Quick Start section with clarification about renaming server and handling multiple proxies
+- Updated badge styles to flat-square for consistency
+
+### Added
+- Example configuration for multiple AgentCore runtime proxies in VS Code
+- `.DS_Store` to `.gitignore`
+
+## [0.1.4] - 2025-10-17
+
+### Added
+- VS Code one-click installation badges for Quick Start section
+- `install/generate-buttons.py` script for creating installation badge markdown
+  - Supports customizable shields.io styles, colors, and logos
+  - Clipboard integration for easy copying
+  - Properly separates MCP config inputs as URL parameter
+- `install/vscode/mcp.json` configuration with input prompts for AgentCore Agent ARN and assume role ARN
+
+### Changed
+- Enhanced README with Quick Start section featuring install badges for VS Code and VS Code Insiders
+- Updated badge generator to use config's `name` field for MCP server identifier (instead of display name)
+
+### Fixed
+- Installation URL now correctly uses `agentcoreMcpProxy` as the server name from config
+
 ## [0.1.3] - 2025-10-06
 
 ### Added
@@ -57,7 +89,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Smoke test utilities
 - Comprehensive documentation and examples
 
-[Unreleased]: https://github.com/alessandrobologna/agentcore-mcp-proxy/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/alessandrobologna/agentcore-mcp-proxy/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/alessandrobologna/agentcore-mcp-proxy/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/alessandrobologna/agentcore-mcp-proxy/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/alessandrobologna/agentcore-mcp-proxy/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/alessandrobologna/agentcore-mcp-proxy/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/alessandrobologna/agentcore-mcp-proxy/compare/v0.1.0...v0.1.1

@@ -1,20 +1,5 @@
 # Amazon Bedrock AgentCore MCP Proxy
 
-[![PyPI version](https://img.shields.io/pypi/v/mcp-agentcore-proxy.svg?style=for-the-badge)](https://pypi.org/project/mcp-agentcore-proxy/)
-[![Python versions](https://img.shields.io/pypi/pyversions/mcp-agentcore-proxy.svg?style=for-the-badge)](https://pypi.org/project/mcp-agentcore-proxy/)
-[![CI](https://img.shields.io/github/actions/workflow/status/alessandrobologna/agentcore-mcp-proxy/ci.yml?branch=main&style=for-the-badge)](https://github.com/alessandrobologna/agentcore-mcp-proxy/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-
-## Quick Start
-
-Install the MCP proxy in VS Code with one click:
-
-[![Install on VS Code](https://img.shields.io/badge/VS_Code-Install-007ACC?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=Install%20on%20VS%20Code&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22agentArn%22%2C%22description%22%3A%22Enter%20the%20required%20AGENTCORE_AGENT_ARN%22%2C%22password%22%3Afalse%7D%2C%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22assumeRoleArn%22%2C%22description%22%3A%22Optional%20AGENTCORE_ASSUME_ROLE_ARN%20%28press%20Enter%20to%20skip%29%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22name%22%3A%22agentcoreMcpProxy%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-agentcore-proxy%22%5D%2C%22env%22%3A%7B%22AGENTCORE_AGENT_ARN%22%3A%22%24%7Binput%3AagentArn%7D%22%2C%22AGENTCORE_ASSUME_ROLE_ARN%22%3A%22%24%7Binput%3AassumeRoleArn%7D%22%7D%7D) [![Install on VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install-00B56A?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=Install%20on%20VS%20Code%20Insiders&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22agentArn%22%2C%22description%22%3A%22Enter%20the%20required%20AGENTCORE_AGENT_ARN%22%2C%22password%22%3Afalse%7D%2C%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22assumeRoleArn%22%2C%22description%22%3A%22Optional%20AGENTCORE_ASSUME_ROLE_ARN%20%28press%20Enter%20to%20skip%29%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22name%22%3A%22agentcoreMcpProxy%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-agentcore-proxy%22%5D%2C%22env%22%3A%7B%22AGENTCORE_AGENT_ARN%22%3A%22%24%7Binput%3AagentArn%7D%22%2C%22AGENTCORE_ASSUME_ROLE_ARN%22%3A%22%24%7Binput%3AassumeRoleArn%7D%22%7D%7D&quality=insiders)
-
-You'll be prompted to enter your AgentCore Agent ARN during installation. Leave the assume role ARN empty if not using cross-account access.
-
-> **Need a runtime ARN?** Deploy sample runtimes from the [`demo/` directory](demo/README.md), or see the [Installation](#installation) section for detailed setup instructions.
-
 ## Overview
 
 This repository addresses two limitations in Amazon Bedrock AgentCore when running MCP servers:
@@ -26,6 +11,23 @@ This repository addresses two limitations in Amazon Bedrock AgentCore when runni
 The local proxy handles IAM authentication and presents a standard MCP stdio interface to clients. Two deployment models are provided for the AgentCore runtime:
 - **Stateless**: Direct MCP server for simple request/response tools
 - **Stateful**: HTTP bridge maintaining a persistent MCP subprocess for sampling and elicitation workflows
+
+
+[![PyPI version](https://img.shields.io/pypi/v/mcp-agentcore-proxy.svg?style=flat-square)](https://pypi.org/project/mcp-agentcore-proxy/)
+[![Python versions](https://img.shields.io/pypi/pyversions/mcp-agentcore-proxy.svg?style=flat-square)](https://pypi.org/project/mcp-agentcore-proxy/)
+[![CI](https://img.shields.io/github/actions/workflow/status/alessandrobologna/agentcore-mcp-proxy/ci.yml?branch=main&style=flat-square)](https://github.com/alessandrobologna/agentcore-mcp-proxy/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+
+## Quick Start
+
+If you already have an MCP server deployed on Amazon AgentCore Runtime, you can install the MCP proxy in VS Code with one click:
+
+[![Install on VS Code](https://img.shields.io/badge/VS_Code-Install%20on%20VS%20Code-007ACC?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=agentcoreMcpProxy&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22agentArn%22%2C%22description%22%3A%22Enter%20the%20required%20AGENTCORE_AGENT_ARN%22%2C%22password%22%3Afalse%7D%2C%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22assumeRoleArn%22%2C%22description%22%3A%22Optional%20AGENTCORE_ASSUME_ROLE_ARN%20%28press%20Enter%20to%20skip%29%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22name%22%3A%22agentcoreMcpProxy%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-agentcore-proxy%22%5D%2C%22env%22%3A%7B%22AGENTCORE_AGENT_ARN%22%3A%22%24%7Binput%3AagentArn%7D%22%2C%22AGENTCORE_ASSUME_ROLE_ARN%22%3A%22%24%7Binput%3AassumeRoleArn%7D%22%7D%7D) [![Install on VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install%20on%20VS%20Code%20Insiders-00B56A?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=agentcoreMcpProxy&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22agentArn%22%2C%22description%22%3A%22Enter%20the%20required%20AGENTCORE_AGENT_ARN%22%2C%22password%22%3Afalse%7D%2C%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22assumeRoleArn%22%2C%22description%22%3A%22Optional%20AGENTCORE_ASSUME_ROLE_ARN%20%28press%20Enter%20to%20skip%29%22%2C%22password%22%3Afalse%7D%5D&config=%7B%22name%22%3A%22agentcoreMcpProxy%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-agentcore-proxy%22%5D%2C%22env%22%3A%7B%22AGENTCORE_AGENT_ARN%22%3A%22%24%7Binput%3AagentArn%7D%22%2C%22AGENTCORE_ASSUME_ROLE_ARN%22%3A%22%24%7Binput%3AassumeRoleArn%7D%22%7D%7D&quality=insiders)
+
+You'll be prompted to enter your AgentCore Agent ARN during installation. Leave the assume role ARN empty if not using cross-account access. The server name in the VSCode `.mcp.json` will be `agentcoreProxy`. Rename it to something that reflect the actual MCP server that you are proxying. 
+
+>[!TIP] 
+> **Need a runtime ARN?** Deploy sample runtimes from the [`demo/` directory](demo/README.md), or see the [Installation](#installation) section for detailed setup instructions.
 
 ## Architecture
 
